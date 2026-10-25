@@ -127,7 +127,11 @@ Teclas normales de mpv: mostrar todos los subtítulos, y adelantarlos o
 atrasarlos 0.1 s (r, t, y y d lo toman en cuenta). Normalmente no hace falta,
 porque los subtítulos se sincronizan solos.
 .PP
-Sin \fIsubtítulos.srt\fR usa el archivo con el mismo nombre que el video.
+Sin \fIsubtítulos.srt\fR usa el archivo con el mismo nombre que el video, y
+si no existe lo baja de OpenSubtitles en inglés (\fIsubtitulos.py\fR): primero
+por el hash del archivo y, si no hay, por la serie y el episodio de la ruta
+(\fIwhite\-collar/s1\-e2.mp4\fR busca "white collar" 1x02). También con
+\fB\-\-preparar\fR.
 La primera vez que se abre un episodio, \fIsincronizar.py\fR sincroniza los
 subtítulos con el audio por tramos (~15 s). Detecta dónde hay voz y, en
 ventanas de 5 min cada minuto, busca el desplazamiento que mejor encima los
@@ -278,6 +282,12 @@ si alguno cambia. Se pueden borrar.
 .I ~/.local/share/audiotrans/dudas/
 Dudas de \fBpracticar\fR: \fIdudas.jsonl\fR (una por línea: episodio, tiempos,
 texto, traducción, fecha) y \fIaudio/\fR con un mp3 por duda.
+.TP
+.I ~/.local/share/audiotrans/opensubtitles
+Clave de la API de OpenSubtitles para bajar subtítulos, como
+\fBapi_key=\fR\fIclave\fR (se crea en https://www.opensubtitles.com/en/consumers).
+Si la cuota sin sesión no alcanza, se agregan \fBusuario=\fR y \fBcontrasena=\fR.
+También se puede pasar en la variable \fBOPENSUBTITLES_API_KEY\fR.
 .TP
 .I ~/.local/share/audiotrans/venv/
 Entorno de Python 3.12 con faster\-whisper, CTranslate2 y SentencePiece.

@@ -7,6 +7,10 @@ distinta, el desfase cambia a lo largo del episodio (en White Collar 1x01 iba de
 a -0.1 s). Se marca dónde hay voz con el VAD, y en ventanas de VENTANA segundos, cada
 PASO, se busca el desplazamiento que mejor encima los subtítulos sobre la voz. Cada
 línea toma el desplazamiento de su zona, interpolado entre ventanas.
+
+Cada ventana busca cerca del desfase de la anterior y no cerca de 0, porque en una versión
+de TV con los cortes comerciales recortados el desfase se acumula: en el .srt HDTV de
+White Collar 1x02 sube ~2.5 s en cada corte, hasta +10.4 s al final.
 """
 import re
 import subprocess
@@ -19,7 +23,7 @@ TASA = 16000
 RES = 100           # muestras por segundo de las señales de voz y subtítulos
 VENTANA = 300       # s de audio que se comparan para estimar cada desfase
 PASO = 60           # s entre una ventana y la siguiente
-MAX_DESFASE = 8     # s: no se buscan desfases más grandes (evita emparejar con otra escena)
+MAX_DESFASE = 8     # s: cuánto puede cambiar el desfase de una ventana a la siguiente
 
 PATRON = re.compile(r"(\d+):(\d+):(\d+)[,.](\d+)\s*-->\s*(\d+):(\d+):(\d+)[,.](\d+)")
 
@@ -69,15 +73,23 @@ def desfases(voz, subs):
     # Señales centradas: así una zona sin voz ni subtítulos no favorece ningún desplazamiento
     voz_c, subs_c = voz - voz.mean(), subs - subs.mean()
     m = MAX_DESFASE * RES
+    previo = 0  # cada ventana busca alrededor del desfase de la anterior, en muestras
     resultado = []
     for centro in range(VENTANA // 2, int(len(voz) / RES) - VENTANA // 2 + PASO, PASO):
-        a = max(m, (centro - VENTANA // 2) * RES)
-        b = min(len(voz) - m, (centro + VENTANA // 2) * RES)
+        a = max(abs(previo) + m, (centro - VENTANA // 2) * RES)
+        b = min(len(voz) - abs(previo) - m, (centro + VENTANA // 2) * RES)
         if b - a < RES * 60 or subs[a:b].sum() < RES * 10:
             continue  # ventana muy corta o casi sin diálogo
         # correlación de la voz con los subtítulos desplazados `d` muestras
-        correl = [np.dot(voz_c[a:b], subs_c[a - d:b - d]) for d in range(-m, m + 1)]
-        resultado.append((centro, (int(np.argmax(correl)) - m) / RES))
+        rango = range(previo - m, previo + m + 1)
+        correl = [np.dot(voz_c[a:b], subs_c[a - d:b - d]) for d in rango]
+        i = int(np.argmax(correl))
+        if i in (0, len(rango) - 1):
+            # En el borde no es una medición: seguramente emparejó con otra escena
+            print(f"sincronizar: min {centro / 60:.1f} sin desfase claro, se omite", file=sys.stderr)
+            continue
+        previo = rango[i]
+        resultado.append((centro, previo / RES))
     return resultado
 
 
