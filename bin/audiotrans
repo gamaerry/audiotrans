@@ -1,0 +1,116 @@
+#!/usr/bin/env bash
+# Graba audio (micrófono o lo que suena en el sistema), lo transcribe con Whisper y lo traduce.
+set -euo pipefail
+
+# Código junto a este script (resolviendo enlaces); venv y modelos en el directorio de datos
+lib="$(dirname "$(readlink -f "$0")")/../lib"
+export AUDIOTRANS_DATOS="${AUDIOTRANS_DATOS:-$HOME/.local/share/audiotrans}"
+python="$AUDIOTRANS_DATOS/venv/bin/python"
+cache="$HOME/.cache/audiotrans"
+wav="$cache/ultimo.wav"
+
+ayuda() {
+    cat <<'EOF'
+Uso: audiotrans [opciones] <destino>
+
+Graba audio hasta presionar Enter, lo transcribe con Whisper y traduce el
+texto al idioma <destino>. Inglés↔español se traduce en local (OPUS-MT, sin
+internet); los demás idiomas, con Google.
+
+Opciones:
+  -<origen>      idioma del audio (p. ej. -en, -ja); sin esto se detecta solo
+  -s, --sistema  grabar lo que suena en la computadora en vez del micrófono
+  -l, --loop     repetir: tras cada traducción vuelve a escuchar (Ctrl+C sale)
+  -r, --tiempo-real
+                 escuchar sin parar y traducir cada frase al detectar una pausa,
+                 sin presionar Enter (Ctrl+C sale); ~0.5 s por frase
+  -f, --rapido   para emergencias: modelo base (mitad de RAM, ~0.25 s por
+                 frase, se equivoca más) y, con -r, pausas más cortas
+  -g, --google   traducir con Google aunque haya modelo local (entiende mejor
+                 modismos y jerga, p. ej. "la neta", pero necesita internet)
+  -h, --help     mostrar esta ayuda
+
+Atajos:
+  es/en      traducir texto al español/inglés (textrans; -g para jerga)
+  esp/eng    traducir texto con la salida completa de trans (diccionario)
+  cbes/cben  portapapeles (lo copiado) → español/inglés
+  pses/psen  selección (lo subrayado con el mouse) → español/inglés
+  mes/men    micrófono → español/inglés
+  ses/sen    audio del sistema → español/inglés
+
+Ejemplos:
+  mes            escucha el micrófono y traduce al español
+  ses -en -l     traduce al español, en bucle, lo que suena (en inglés)
+  ses -en -r     lo mismo, pero en tiempo real
+  ses -en -r -f  lo mismo, con el modelo rápido
+
+Entorno:
+  AUDIOTRANS_MODEL  modelo de Whisper (por defecto: small; con -f: base).
+                    tiny/base: menos RAM y más rápido; medium: un poco más
+                    preciso pero ~3 veces más lento y con 2.5 GB de RAM
+  AUDIOTRANS_HILOS  hilos de CPU para Whisper (por defecto: 4)
+  AUDIOTRANS_DATOS  directorio del venv y los modelos
+                    (por defecto: ~/.local/share/audiotrans)
+
+Archivos:
+  ~/.cache/audiotrans/ultimo.wav  última grabación (se sobrescribe cada vez)
+  ~/.cache/huggingface/hub/       modelos descargados (small ≈ 460 MB)
+  ~/.local/share/audiotrans/venv/     entorno de Python (cambia con AUDIOTRANS_DATOS)
+  ~/.local/share/audiotrans/modelos/  traductores locales en-es y es-en (164 MB)
+
+Más detalles: man audiotrans
+EOF
+}
+
+destino="" origen="" bucle=false sistema=false real=false rapido=false google=false
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help) ayuda; exit 0 ;;
+        -l|--loop) bucle=true ;;
+        -s|--sistema) sistema=true ;;
+        -r|--tiempo-real) real=true ;;
+        -f|--rapido) rapido=true ;;
+        -g|--google) google=true ;;
+        -[a-z][a-z]|-[a-z][a-z][a-z]) origen="${arg#-}" ;;
+        -*) echo "audiotrans: opción desconocida: $arg (ver --help)" >&2; exit 2 ;;
+        *) destino="$arg" ;;
+    esac
+done
+[[ -n "$destino" ]] || { ayuda >&2; exit 2; }
+if [[ -n "$origen" ]]; then
+    "$python" -c 'import sys; from faster_whisper.tokenizer import _LANGUAGE_CODES as c; sys.exit(sys.argv[1] not in c)' "$origen" \
+        || { echo "audiotrans: idioma de origen desconocido para Whisper: $origen" >&2; exit 2; }
+fi
+
+if $rapido; then
+    export AUDIOTRANS_MODEL="${AUDIOTRANS_MODEL:-base}" AUDIOTRANS_RAPIDO=1
+fi
+if $google; then
+    export AUDIOTRANS_EN_LINEA=1
+fi
+
+grabar=(pw-record --rate 16000 --channels 1 --format s16)
+if $sistema; then
+    # Graba el monitor de la salida de audio actual, no el micrófono
+    grabar+=(--target "$(pactl get-default-sink)" -P '{ stream.capture.sink = true }')
+fi
+
+if $real; then
+    "${grabar[@]}" --raw - | exec "$python" "$lib/tiempo_real.py" "$origen" "$destino" || true
+    exit 0
+fi
+
+mkdir -p "$cache"
+
+while true; do
+    "${grabar[@]}" "$wav" &
+    pid=$!
+    sleep 0.3  # dar tiempo a que pw-record arranque antes de avisar
+    read -rp $'\e[31m●\e[0m Escuchando... (Enter para terminar) '
+    sleep 0.6  # no cortar la última palabra al presionar Enter
+    kill -INT "$pid"; wait "$pid" 2>/dev/null || true
+
+    "$python" "$lib/transcribir.py" "$wav" "$origen" "$destino" 2>/dev/null || true
+
+    $bucle || break
+done

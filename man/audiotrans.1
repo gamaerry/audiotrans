@@ -1,0 +1,237 @@
+.TH AUDIOTRANS 1 "octubre 2026" "audiotrans" "Comandos de usuario"
+.SH NOMBRE
+audiotrans, textrans, es, en, cbes, cben, pses, psen, mes, men, ses, sen \- traducir texto o lo que se escucha en el micrófono o en la computadora
+.SH SINOPSIS
+.B audiotrans
+.RB [ \-s ]
+.RB [ \-l | \-r ]
+.RB [ \-f ]
+.RB [ \-g ]
+.RB [ \-\fIorigen\fR ]
+.I destino
+.br
+.B mes
+|
+.B men
+|
+.B ses
+|
+.B sen
+.RB [ \-l | \-r ]
+.RB [ \-f ]
+.RB [ \-g ]
+.RB [ \-\fIorigen\fR ]
+.br
+.B textrans
+.I destino
+.RB [ \-g ]
+.RB [ \-\fIorigen\fR ]
+.RI [ texto ...]
+.br
+.B es
+|
+.B en
+.RB [ \-g ]
+.RB [ \-\fIorigen\fR ]
+.RI [ texto ...]
+.SH DESCRIPCIÓN
+.B audiotrans
+graba audio hasta que se presiona Enter, lo transcribe con Whisper
+(\fIfaster\-whisper\fR, se ejecuta en la propia máquina y sin internet)
+y traduce el texto al idioma
+.IR destino .
+.PP
+Entre inglés y español la traducción también es local, con modelos OPUS\-MT
+(unos 50 ms por frase, sin internet). Para eso basta con que Whisper detecte
+el idioma; no hace falta indicar \fB\-\fIorigen\fR.
+Los demás pares de idiomas se traducen con Google y necesitan conexión.
+.PP
+Primero muestra en gris el texto que entendió y debajo la traducción.
+Si el audio ya está en el idioma
+.IR destino ,
+la traducción sale igual al original.
+.PP
+Al presionar Enter sigue grabando 0.6 s más para no cortar la última palabra.
+.PP
+Con \fB\-r\fR no hace falta presionar Enter: escucha sin parar, cierra cada
+frase al detectar una pausa de medio segundo (o a los 10 s si nadie hace pausa)
+y la traduce mientras sigue escuchando. Cada traducción aparece alrededor de
+0.5 s después de terminar la frase (0.25 s con \fB\-f\fR).
+.SS textrans
+.B textrans
+traduce
+.I texto
+(o la entrada estándar, si no se le da texto) al idioma
+.IR destino ,
+con las mismas reglas: inglés\(<>español en local y lo demás con Google.
+Tarda unos 0.3 s, contra 1 a 12 s de \fBtrans\fR. Acepta \fB\-g\fR y
+\fB\-\fIorigen\fR igual que \fBaudiotrans\fR.
+.PP
+Como no hay Whisper que detecte el idioma, lo adivina con palabras frecuentes
+y acentos (ñ, ¿, ¡), y solo decide si un idioma le gana al otro por al menos
+dos palabras. Si no está claro (textos de una o dos palabras, u otros idiomas),
+usa Google; si además no hay conexión, supone que el texto está en el otro
+idioma del par inglés\-español y usa el modelo local.
+.SH OPCIONES
+.TP
+.BI \- origen
+Idioma del audio, con código de Whisper de dos o tres letras
+(\fB\-en\fR, \fB\-ja\fR, \fB\-fr\fR, ...).
+Sin esta opción, Whisper detecta el idioma.
+Indicarlo reduce errores en frases cortas o con ruido.
+.TP
+.BR \-s ", " \-\-sistema
+Grabar lo que suena en la computadora (el monitor de la salida de audio
+predeterminada) en lugar del micrófono. Da mucho mejor resultado con videos
+o llamadas, porque no entra ruido del cuarto ni eco de las bocinas.
+.TP
+.BR \-l ", " \-\-loop
+Repetir: tras cada traducción vuelve a escuchar. Se sale con Ctrl+C.
+.TP
+.BR \-r ", " \-\-tiempo\-real
+Escuchar sin parar y traducir cada frase en cuanto hay una pausa, sin presionar
+Enter. Se sale con Ctrl+C. Usa el mismo modelo \fBsmall\fR que el modo normal,
+pero con la ventana ajustada a cada frase (ver NOTAS), así que es más rápido y
+algo menos preciso en español. Detectar el idioma no agrega retraso, aunque en
+frases muy cortas indicarlo con \fB\-\fIorigen\fR evita confusiones.
+No guarda \fIultimo.wav\fR. Con \fB\-s\fR se graba todo lo que suena
+en la computadora, así que también entra cualquier otro audio que esté sonando.
+.TP
+.BR \-f ", " \-\-rapido
+Para emergencias (poca RAM o la CPU ocupada): usa el modelo \fBbase\fR (si
+\fBAUDIOTRANS_MODEL\fR no indica otro), que ocupa la mitad de RAM (~360 MB) y
+tarda ~0.25 s por frase y, con \fB\-r\fR, cierra las frases con 0.35 s de
+pausa en vez de 0.5 s. Se equivoca más, sobre todo en español y con nombres,
+números y palabras poco comunes.
+.TP
+.BR \-g ", " \-\-google
+Traducir con Google aunque haya modelo local. Entiende mejor los modismos y la
+jerga (los modelos locales traducen «la neta» como «the net» y «me late» como
+«it beats me»), pero necesita internet. La traducción se pide directamente al
+servicio de Google que usa \fBtrans\fR (unos 0.1 s, contra 1 a 12 s de
+\fBtrans\fR); si falla, se usa \fBtrans\fR.
+.TP
+.BR \-h ", " \-\-help
+Mostrar la ayuda breve.
+.SH ATAJOS
+Definidos en \fI~/.bash_aliases\fR, en el bloque «Traductores»:
+.TP
+.BR es ", " en
+Traducir texto al español/inglés (\fBtextrans es\fR, \fBtextrans en\fR).
+Con \fB\-g\fR usan Google, para jerga y modismos.
+.TP
+.BR esp ", " eng
+Traducir texto con la salida completa de \fBtrans\fR (\fBtrans \-t\fR
+\fIidioma\fR): definiciones, sinónimos y ejemplos. Siempre usa internet.
+.TP
+.BR cbes ", " cben
+Traducir el portapapeles (lo copiado con Ctrl+C) al español/inglés
+(\fBwl\-paste \-n | textrans es\fR).
+.TP
+.BR pses ", " psen
+Traducir la selección primaria (lo subrayado con el mouse, sin copiar) al
+español/inglés (\fBwl\-paste \-p \-n | textrans es\fR).
+.TP
+.BR mes ", " men
+Micrófono \(-> español/inglés (\fBaudiotrans es\fR, \fBaudiotrans en\fR).
+.TP
+.BR ses ", " sen
+Audio del sistema \(-> español/inglés (\fBaudiotrans \-s es\fR, \fBaudiotrans \-s en\fR).
+.PP
+Los atajos aceptan las mismas opciones, por ejemplo \fBses \-en \-l\fR.
+.SH ENTORNO
+.TP
+.B AUDIOTRANS_MODEL
+Modelo de Whisper. Por defecto \fBsmall\fR (unos 700 MB de RAM), y \fBbase\fR
+con \fB\-f\fR. Tiempo por frase de 3\(en5 s en esta máquina con la ventana
+ajustada: \fBtiny\fR 0.16 s, \fBbase\fR 0.25 s, \fBsmall\fR 0.5 s,
+\fBmedium\fR 1.3 s (2.5 GB de RAM y a veces repite frases).
+\fBtiny\fR se equivoca demasiado para el uso normal;
+\fBlarge\-v3\-turbo\fR tarda más de 10 s y no conviene en CPU.
+Un modelo nuevo se descarga la primera vez que se usa.
+.TP
+.B AUDIOTRANS_HILOS
+Hilos de CPU para Whisper y los traductores locales (por defecto 4). En un
+i3\-N305 (8 núcleos eficientes en 2 bloques de 4) más hilos fueron más lentos;
+en otros CPU conviene probar.
+.TP
+.B AUDIOTRANS_DATOS
+Directorio del entorno de Python y los modelos de traducción (por defecto
+\fI~/.local/share/audiotrans\fR).
+.SH ARCHIVOS
+.TP
+.I ~/.cache/audiotrans/ultimo.wav
+Última grabación; se sobrescribe en cada uso. Sirve para escuchar qué se grabó
+realmente cuando una transcripción sale mal.
+.TP
+.I ~/.cache/huggingface/hub/
+Modelos de Whisper descargados (\fBsmall\fR ocupa unos 460 MB).
+Se pueden borrar; se vuelven a descargar al usarlos.
+.TP
+.I ~/.local/share/audiotrans/modelos/
+Traductores locales \fIen\-es\fR y \fIes\-en\fR (OPUS\-MT convertidos a
+CTranslate2 en int8, 82 MB cada uno). Para agregar otro par basta con crear
+\fImodelos/\fRorigen\fI\-\fRdestino con el mismo formato.
+.TP
+.IR ~/.local/bin/audiotrans ", " ~/.local/bin/textrans
+Enlaces a los comandos en \fIbin/\fR del repositorio, que los instala
+\fIinstalar.sh\fR. El código de Python está en \fIlib/\fR del repositorio:
+\fItranscribir.py\fR para una sola grabación, \fItiempo_real.py\fR para
+\fB\-r\fR, \fIwhisper_corto.py\fR con la ventana ajustada, \fItexto.py\fR para
+\fBtextrans\fR y \fItraduccion.py\fR, que decide entre el modelo local y Google.
+.TP
+.I ~/.local/share/audiotrans/venv/
+Entorno de Python 3.12 con faster\-whisper, CTranslate2 y SentencePiece.
+.SH EJEMPLOS
+.TP
+.B mes
+Escucha el micrófono y traduce al español.
+.TP
+.B ses \-en \-l
+Traduce al español, en bucle, lo que suena en la computadora, sabiendo que está en inglés.
+.TP
+.B ses \-en \-r
+Lo mismo, pero en tiempo real, sin presionar Enter.
+.TP
+.B ses \-en \-r \-f
+Tiempo real con el modelo rápido.
+.TP
+.B AUDIOTRANS_MODEL=tiny ses \-r
+Tiempo real con el modelo más ligero que hay (muy impreciso).
+.TP
+.B en \-g me late que va a llover
+Texto con jerga, traducido con Google.
+.TP
+.B pses
+Traduce lo que está seleccionado en pantalla (equivale a \fBwl\-paste \-p | es\fR).
+.TP
+.B audiotrans \-ja fr
+Micrófono en japonés \(-> francés.
+.SH NOTAS
+Se usa Python 3.12 (instalado con \fBuv\fR) porque faster\-whisper no tiene
+paquetes para el Python del sistema. PyAV está fijado a una versión menor a la 16,
+porque las versiones nuevas no son compatibles con faster\-whisper 1.2.
+.PP
+Velocidad: faster\-whisper siempre rellena el audio hasta 30 s, y el
+codificador (lo más caro en CPU) procesa esos 30 s aunque la frase dure 3.
+\fIwhisper_corto.py\fR le da al codificador una ventana del tamaño de la frase
+más 1 s: \fBsmall\fR pasa de 2.2 s a 0.5 s por frase. En inglés la precisión
+es la misma; en español baja un poco, por eso el modo con Enter usa una ventana
+mínima de 15 s (~1.1 s), que la recupera. El idioma se detecta sobre la misma
+codificación, sin pasada extra (antes costaba de 0.7 a 3.5 s por frase).
+Con ventanas cortas Whisper a veces repite la frase en bucle; se limita el texto
+a ~10 tokens por segundo de audio y se quitan las repeticiones exactas.
+Se usan 4 hilos: en este CPU (i3\-N305, 8 núcleos eficientes) 8 hilos son más
+lentos.
+.PP
+Precisión en el modo con Enter: búsqueda más amplia (\fIbeam_size\fR 10) y
+filtro de voz con 600 ms de margen. Las grabaciones de más de 28 s de voz se
+transcriben con faster\-whisper normal.
+.PP
+Los traductores locales son los modelos Tatoeba\-MT de Helsinki\-NLP
+(\fIeng\-spa opus+bt\-2021\-04\-10\fR y \fIspa\-eng opus+bt\-2021\-04\-30\fR),
+con licencia CC\-BY 4.0; la licencia y la ficha de cada uno están junto al modelo.
+.SH VÉASE TAMBIÉN
+.BR trans (1),
+.BR pw\-record (1),
+.BR pactl (1)
