@@ -40,7 +40,7 @@ He didn't say a word, but his eyes told me everything.
 | `y` | muestra la traducción |
 | `d` | guarda la duda: texto, traducción y fragmento de audio |
 
-Usa el `.srt` con el mismo nombre que el video. Muchos `.mkv` traen los subtítulos dentro y se extraen con `ffmpeg -i video.mkv -map 0:s:0 video.srt`. Si van desfasados, `z`/`x` los ajustan. `practicar dudas` lista lo guardado.
+Usa el `.srt` con el mismo nombre que el video. Muchos `.mkv` traen los subtítulos dentro y se extraen con `ffmpeg -i video.mkv -map 0:s:0 video.srt`. La primera vez que abres un episodio, los subtítulos se **sincronizan con el audio por tramos** (~15 s, se guarda en caché): si el `.srt` es de otra versión del video, cada parte del episodio se corrige por separado. `practicar dudas` lista lo guardado.
 
 Opciones de los comandos de audio (`audiotrans`):
 
@@ -137,7 +137,19 @@ Para medir la precisión con voz real usé [Mini LibriSpeech](https://www.opensl
 
 Whisper acepta el texto anterior como pista (`<|startofprev|>`). Eso le da el tema y los nombres, y casi divide los errores entre dos por 0.14 s más. Además, cortar con una pausa de 0.5 s parte las frases a la mitad; esperar 0.8 s da frases más completas. Con el código real de `-r` a velocidad real, uno de los flujos con ruido pasó de 17.2 % a 6.2 % de error con `-r`, y a 2.6 % con `-p`.
 
-### 6. Modelos descartados
+### 6. Sincronizar subtítulos por tramos
+
+Los `.srt` descargados suelen ser de otra versión del video. En White Collar 1x01, el subtítulo aparecía ~1.25 s antes que la voz, así que repetir una línea la cortaba antes de que el actor terminara. [`lib/sincronizar.py`](lib/sincronizar.py) marca con el VAD dónde hay voz y, en ventanas de 5 min cada minuto, busca el desplazamiento que mejor encima los subtítulos sobre la voz. Cada línea toma el de su zona, de modo que también se corrigen desfases que cambian a lo largo del episodio. Medido con las marcas por palabra de Whisper en 8 zonas ([`pruebas/desfase_srt.py`](pruebas/desfase_srt.py)):
+
+| | desfase |
+|---|---|
+| `.srt` original | −1.17 a −1.39 s |
+| [ffsubsync](https://github.com/smacke/ffsubsync) (un solo desplazamiento) | −0.09 a −0.33 s |
+| **por tramos** | **−0.15 a +0.07 s** |
+
+Una lección: medir con el inicio de los segmentos de Whisper, en lugar de por palabra, sugirió que el desfase cambiaba hacia el final, cuando en realidad era constante.
+
+### 7. Modelos descartados
 
 | Modelo | Por qué no |
 |---|---|
@@ -154,6 +166,7 @@ bin/textrans        traduce texto
 bin/practicar       abre un video en mpv para practicar listening
 mpv/audiotrans.lua  teclas r/R/t/y/d dentro de mpv
 lib/dudas.py        guarda las dudas con su fragmento de audio
+lib/sincronizar.py  sincroniza el .srt con el audio por tramos
 lib/whisper_corto.py   Whisper con ventana ajustada (descubrimientos 1 y 2)
 lib/tiempo_real.py     modo -r: contexto entre frases y traducción en paralelo
 lib/frases.py          corta el audio continuo en frases con el VAD

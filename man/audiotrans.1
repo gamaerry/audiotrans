@@ -36,6 +36,7 @@ audiotrans, textrans, practicar, es, en, cbes, cben, pses, psen, mes, men, ses, 
 .RI [ texto ...]
 .br
 .B practicar
+.RB [ \-\-sin\-sincronizar ]
 .I video
 .RI [ subtítulos.srt ]
 .RB [ \-\fIdestino\fR ]
@@ -109,9 +110,18 @@ Guarda la línea como duda: el texto, la traducción y el fragmento de audio
 .TP
 .BR v ", " z ", " x
 Teclas normales de mpv: mostrar todos los subtítulos, y adelantarlos o
-atrasarlos 0.1 s si el \fI.srt\fR va desfasado (r, t, y y d lo toman en cuenta).
+atrasarlos 0.1 s (r, t, y y d lo toman en cuenta). Normalmente no hace falta,
+porque los subtítulos se sincronizan solos.
 .PP
 Sin \fIsubtítulos.srt\fR usa el archivo con el mismo nombre que el video.
+La primera vez que se abre un episodio, \fIsincronizar.py\fR sincroniza los
+subtítulos con el audio por tramos (~15 s). Detecta dónde hay voz y, en
+ventanas de 5 min cada minuto, busca el desplazamiento que mejor encima los
+subtítulos sobre la voz; cada línea toma el de su zona. Así se corrige también
+un desfase que cambia a lo largo del episodio (por cortes o pausas distintas),
+que \fBz\fR/\fBx\fR no pueden arreglar porque mueven todo por igual. El
+resultado queda en \fI~/.cache/audiotrans/sincronizados/\fR y el \fI.srt\fR
+original no se modifica. Con \fB\-\-sin\-sincronizar\fR se usa tal cual.
 El texto se quita al reanudar la reproducción. \fBpracticar dudas\fR lista
 las dudas guardadas. Las teclas r, R, t y d reemplazan, solo en esta sesión,
 las de mpv para mover los subtítulos, desentrelazar y fijar la ventana encima.
@@ -231,6 +241,10 @@ Enlaces a los comandos en \fIbin/\fR del repositorio, que los instala
 \fItranscribir.py\fR para una sola grabación, \fItiempo_real.py\fR para
 \fB\-r\fR, \fIwhisper_corto.py\fR con la ventana ajustada, \fItexto.py\fR para
 \fBtextrans\fR y \fItraduccion.py\fR, que decide entre el modelo local y Google.
+.TP
+.I ~/.cache/audiotrans/sincronizados/
+Subtítulos ya sincronizados de \fBpracticar\fR, uno por combinación de video y
+\fI.srt\fR; se vuelven a generar si alguno cambia. Se pueden borrar.
 .TP
 .I ~/.local/share/audiotrans/dudas/
 Dudas de \fBpracticar\fR: \fIdudas.jsonl\fR (una por línea: episodio, tiempos,

@@ -39,6 +39,8 @@ Notas para trabajar en el código. Qué hace la herramienta y por qué está dis
 - **El contexto de `-r`** (las 2 frases anteriores con `<|startofprev|>`, máximo 100 tokens) se reinicia si cambia el idioma detectado. No se usa con `-f`, porque no se midió con `base`.
 - **La detección en/es de `lib/texto.py`** exige una ventaja de 2 palabras, porque palabras como "la", "de" o "que" existen en francés, italiano y portugués ("Bonjour, où est la gare?" salía como español). Si no está clara, va a Google, y sin red supone el otro idioma del par.
 - **`lib/traduccion.py`** usa la API no oficial `translate.googleapis.com/translate_a/single?client=gtx`, la misma de translate-shell. Si deja de funcionar, cae a `trans -4`; sin `-4`, `trans` se colgaba por IPv6.
+- **Medir sincronización** de subtítulos solo con marcas por palabra (`pruebas/desfase_srt.py`). Los inicios de segmento de Whisper tienen errores de ±1 s y llegaron a sugerir un desfase que cambiaba cuando era constante.
+- **`lib/sincronizar.py`** busca desfases de hasta ±8 s (`MAX_DESFASE`). Un `.srt` de una versión muy distinta (con escenas de más al inicio, por ejemplo) necesitaría un margen mayor o un primer ajuste global.
 - **`mpv/audiotrans.lua`** recibe las rutas por `--script-opts`, que separa con comas: `practicar` rechaza rutas con comas. Los tiempos del `.srt` se desplazan con `sub-delay`. Lua no trae JSON fácil, por eso guardar una duda va en `lib/dudas.py` (subproceso asíncrono, para no congelar el video).
 - **Ctrl+C en tiempo real** termina con `os._exit(0)`, porque el hilo lector queda bloqueado en stdin y un cierre normal aborta Python.
 - Los parámetros (hilos, ventana mínima de 15 s, pausa de 0.5 s) se midieron en un i3-N305. En otro CPU pueden cambiar.
