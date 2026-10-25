@@ -27,7 +27,8 @@ Abre el video en mpv con los subtítulos ocultos. Cuando no entiendas algo:
 Sin .srt se usa el que tenga el mismo nombre que el video, y si no existe se
 baja de OpenSubtitles (clave en ~/.local/share/audiotrans/opensubtitles,
 como api_key=<clave>) por el hash del archivo o por la serie y el episodio
-de la ruta (p. ej. white-collar/s1-e3.mp4). La primera vez que
+de la ruta (p. ej. white-collar/s1-e3.mp4); en ese caso compara hasta 3
+versiones con el audio y se queda con la que mejor coincide. La primera vez que
 se abre un episodio, los subtítulos se sincronizan con el audio por tramos
 (~15 s); con --sin-sincronizar se usan tal cual.
 

@@ -130,8 +130,10 @@ porque los subtítulos se sincronizan solos.
 Sin \fIsubtítulos.srt\fR usa el archivo con el mismo nombre que el video, y
 si no existe lo baja de OpenSubtitles en inglés (\fIsubtitulos.py\fR): primero
 por el hash del archivo y, si no hay, por la serie y el episodio de la ruta
-(\fIwhite\-collar/s1\-e2.mp4\fR busca "white collar" 1x02). También con
-\fB\-\-preparar\fR.
+(\fIwhite\-collar/s1\-e2.mp4\fR busca "white collar" 1x02). En ese caso baja
+hasta 3 versiones, una por fuente (TV, WEB, DVD), porque las de TV suelen tener
+otros cortes, y se queda con la que mejor coincide con la voz ya sincronizada.
+También con \fB\-\-preparar\fR.
 La primera vez que se abre un episodio, \fIsincronizar.py\fR sincroniza los
 subtítulos con el audio por tramos (~15 s). Detecta dónde hay voz y, en
 ventanas de 5 min cada minuto, busca el desplazamiento que mejor encima los

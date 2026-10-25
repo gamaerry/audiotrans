@@ -93,9 +93,8 @@ def desfases(voz, subs):
     return resultado
 
 
-def sincronizar(video, srt, salida):
-    bloques = leer_srt(srt)
-    voz = senal_voz(video)
+def ajustar(bloques, voz):
+    """Devuelve los bloques desplazados y [(centro, desfase)] de cada tramo."""
     estimados = desfases(voz, senal_subtitulos(bloques, len(voz)))
     if not estimados:
         raise SystemExit("sincronizar: no hay suficiente diálogo para estimar el desfase")
@@ -103,11 +102,24 @@ def sincronizar(video, srt, salida):
     # Mediana de 3 ventanas vecinas: quita estimaciones sueltas que se salen (música, efectos)
     crudos = np.array([d for _, d in estimados])
     suaves = np.array([np.median(crudos[max(0, i - 1):i + 2]) for i in range(len(crudos))])
+    ajustados = []
+    for inicio, fin, resto in bloques:
+        d = float(np.interp((inicio + fin) / 2, centros, suaves))
+        ajustados.append((inicio + d, fin + d, resto))
+    return ajustados, list(zip(centros, suaves))
+
+
+def coincidencia(voz, bloques):
+    """Correlación entre la voz y los subtítulos: 1 si coinciden del todo, 0 si no tienen relación."""
+    return float(np.corrcoef(voz, senal_subtitulos(bloques, len(voz)))[0, 1])
+
+
+def sincronizar(video, srt, salida):
+    ajustados, tramos = ajustar(leer_srt(srt), senal_voz(video))
     with open(salida, "w") as f:
-        for n, (inicio, fin, resto) in enumerate(bloques, 1):
-            d = float(np.interp((inicio + fin) / 2, centros, suaves))
-            f.write(f"{n}\n{formato(inicio + d)} --> {formato(fin + d)}\n{resto}\n\n")
-    return list(zip(centros, suaves))
+        for n, (inicio, fin, resto) in enumerate(ajustados, 1):
+            f.write(f"{n}\n{formato(inicio)} --> {formato(fin)}\n{resto}\n\n")
+    return tramos
 
 
 if __name__ == "__main__":
