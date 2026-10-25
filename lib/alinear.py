@@ -1,6 +1,6 @@
 """Ubica cada línea de un .srt ya sincronizado en el audio, palabra por palabra, con Whisper.
 
-Uso: alinear.py <video> <srt sincronizado> <salida.json> <salida.srt>
+Uso: alinear.py <video> <srt sincronizado> <salida.json> <salida.srt> [idioma]
 
 Aun sincronizado por tramos, cada línea del .srt tiene su propio error (hasta ~1 s), así
 que practicar usa márgenes amplios al repetir. Aquí se transcribe el episodio entero con
@@ -15,6 +15,7 @@ import os
 import re
 import subprocess
 import sys
+import unicodedata
 
 import numpy as np
 from faster_whisper import WhisperModel
@@ -25,7 +26,9 @@ BUSQUEDA = 3.0  # s alrededor de la línea en los que se buscan sus palabras
 
 
 def normalizar(palabra):
-    return re.sub(r"[^a-z0-9']", "", palabra.lower())
+    # Sin acentos ni puntuación, para que "été" del .srt coincida con "ete" o "été" de Whisper
+    sin_acentos = "".join(c for c in unicodedata.normalize("NFKD", palabra.lower()) if not unicodedata.combining(c))
+    return re.sub(r"[^\w']|_", "", sin_acentos)
 
 
 def palabras_de(texto):
@@ -33,7 +36,7 @@ def palabras_de(texto):
     return [p for p in (normalizar(w) for w in texto.split()) if p]
 
 
-def transcribir(video):
+def transcribir(video, idioma):
     pcm = subprocess.run(
         ["ffmpeg", "-v", "error", "-i", video, "-vn", "-ac", "1", "-ar", "16000", "-f", "s16le", "-"],
         capture_output=True, check=True,
@@ -41,7 +44,7 @@ def transcribir(video):
     audio = np.frombuffer(pcm, np.int16).astype(np.float32) / 32768
     modelo = WhisperModel(os.environ.get("AUDIOTRANS_MODEL", "small"), device="cpu", compute_type="int8",
                           cpu_threads=int(os.environ.get("AUDIOTRANS_HILOS", 4)))
-    segmentos, _ = modelo.transcribe(audio, language="en", word_timestamps=True,
+    segmentos, _ = modelo.transcribe(audio, language=idioma, word_timestamps=True,
                                      condition_on_previous_text=False, vad_filter=True)
     total, palabras = len(audio) / 16000, []
     for s in segmentos:
@@ -97,8 +100,8 @@ def alinear_linea(palabras, tiempos, inicio, fin, texto):
     return nuevo_inicio, nuevo_fin, j_inicio is not None, j_fin is not None
 
 
-def alinear(video, srt, salida_json, salida_srt):
-    palabras = transcribir(video)
+def alinear(video, srt, salida_json, salida_srt, idioma="en"):
+    palabras = transcribir(video, idioma)
     tiempos = np.array([p[1] for p in palabras])
     lineas = []
     for inicio, fin, texto in leer_srt(srt):
@@ -116,6 +119,6 @@ def alinear(video, srt, salida_json, salida_srt):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 5:
+    if len(sys.argv) not in (5, 6):
         sys.exit(__doc__)
     alinear(*sys.argv[1:])

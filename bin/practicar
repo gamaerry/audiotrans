@@ -25,15 +25,17 @@ Abre el video en mpv con los subtítulos ocultos. Cuando no entiendas algo:
   z / x  adelantar o atrasar los subtítulos 0.1 s (normalmente no hace falta)
 
 Cada serie o película va en su carpeta, con un archivo vacío que dice su
-IMDb ID, p. ej.: touch ~/Videos/white-collar/tt1358522
+IMDb ID y el par de idiomas: el original y al que se traduce (sin par, en-es):
+  touch ~/Videos/white-collar/tt1358522.en-es
+  touch ~/Videos/amelie/tt0211915.fr-es
 Con temporada y episodio en el nombre (s1-e3, S01E03, 1x03) es un episodio de
 esa serie; si no, la película.
 
 Sin .srt se usa el que tenga el mismo nombre que el video, y si no existe se
-baja de OpenSubtitles (clave en ~/.local/share/audiotrans/opensubtitles,
-como api_key=<clave>): por el hash del archivo o, si no hay, por el IMDb ID,
-comparando hasta 3 versiones con el audio para quedarse con la que mejor
-coincide. La primera vez que
+baja de OpenSubtitles en el idioma original (clave en
+~/.local/share/audiotrans/opensubtitles, como api_key=<clave>): por el hash
+del archivo o, si no hay, por el IMDb ID, comparando hasta 3 versiones con el
+audio para quedarse con la que mejor coincide. La primera vez que
 se abre un episodio, los subtítulos se sincronizan con el audio por tramos
 (~15 s); con --sin-sincronizar se usan tal cual.
 
@@ -44,7 +46,7 @@ computadora, p. ej.: practicar --preparar ~/Videos/white-collar/*.mp4
 Todo se guarda en ~/.cache/audiotrans/sincronizados/. --estado dice qué
 episodios ya están preparados, p. ej.: practicar --estado ~/Videos/white-collar/*.mp4
 
-La traducción va al español; para otro idioma, p. ej. -fr. "practicar dudas"
+La traducción va al idioma de la carpeta; para otro, p. ej. -fr. "practicar dudas"
 lista las dudas guardadas (en ~/.local/share/audiotrans/dudas/).
 EOF
 }
@@ -73,32 +75,38 @@ sincronizar() {
 }
 
 marca_de() {
-    # Lee el archivo tt<IMDb ID> de la carpeta del video y deja imdb (vacío si no hay)
-    local dir marcas
+    # Lee el archivo tt<IMDb ID>[.<original>-<destino>] de la carpeta del video y deja
+    # imdb, original y destino_carpeta; sin archivo, imdb queda vacío y el par es en-es
+    local dir nombre marcas
     dir="$(cd "$(dirname "$1")" && pwd)"  # la carpeta del enlace, no la del archivo enlazado
-    imdb=""
+    imdb="" original="en" destino_carpeta="es"
     mapfile -t marcas < <(find "$dir" -maxdepth 1 -type f -regextype posix-extended \
-        -regex '.*/tt[0-9]+' -printf '%f\n')
+        -regex '.*/tt[0-9]+(\.[a-z]{2,3}-[a-z]{2,3})?' -printf '%f\n')
     [[ ${#marcas[@]} -eq 0 ]] && return 0
     if [[ ${#marcas[@]} -gt 1 ]]; then
         echo "practicar: hay más de un archivo tt... en $dir: ${marcas[*]}" >&2
         exit 2
     fi
-    imdb="${marcas[0]}"
+    nombre="${marcas[0]}"
+    imdb="${nombre%%.*}"
+    if [[ "$nombre" == *.* ]]; then
+        original="${nombre#*.}" original="${original%-*}"
+        destino_carpeta="${nombre##*-}"
+    fi
 }
 
 descargar_srt() {
-    # Si falta <video>.srt, lo baja de OpenSubtitles (en inglés); devuelve 1 si no se pudo
+    # Si falta <video>.srt, lo baja de OpenSubtitles en el idioma original; devuelve 1 si no se pudo
     local video="$1" srt="${1%.*}.srt"
     [[ -f "$srt" ]] && return 0
     if [[ -z "$imdb" ]]; then
         echo "practicar: para bajar los subtítulos falta el IMDb ID de la serie o película:" >&2
-        echo "  touch \"$(cd "$(dirname "$video")" && pwd)/tt<número>\"" >&2
+        echo "  touch \"$(cd "$(dirname "$video")" && pwd)/tt<número>.en-es\"" >&2
         echo "  (el número está en la dirección de IMDb, p. ej. imdb.com/title/tt1358522/)" >&2
         return 1
     fi
     echo "Buscando los subtítulos en OpenSubtitles..."
-    if "$python" "$lib/subtitulos.py" "$video" "$srt.tmp" "$imdb"; then
+    if "$python" "$lib/subtitulos.py" "$video" "$srt.tmp" "$imdb" "$original"; then
         mv "$srt.tmp" "$srt"
     else
         rm -f "$srt.tmp"
@@ -119,7 +127,7 @@ preparar() {
         sincronizar "$video" "$srt" "$base" || { echo "  no se pudo sincronizar" >&2; continue; }
         echo "  ubicando cada línea en el audio con Whisper (~8 min)..."
         inicio=$SECONDS
-        if nice -n 19 "$python" "$lib/alinear.py" "$video" "$base.srt" "$base.json.tmp" "$base.exacto.srt.tmp" 2> >(grep --line-buffered -v -i warn >&2); then
+        if nice -n 19 "$python" "$lib/alinear.py" "$video" "$base.srt" "$base.json.tmp" "$base.exacto.srt.tmp" "$original" 2> >(grep --line-buffered -v -i warn >&2); then
             mv "$base.exacto.srt.tmp" "$base.exacto.srt"
             mv "$base.json.tmp" "$base.json"
             echo "  listo en $(( (SECONDS - inicio) / 60 )) min"
@@ -159,7 +167,7 @@ print(f"{round(100 * exactas / max(len(lineas), 1))} % de las líneas exactas")'
     echo "$listos de $# preparados"
 }
 
-video="" srt="" destino="es" sincronizar=true
+video="" srt="" destino="" sincronizar=true
 case "${1:-}" in
     dudas) exec "$python" "$lib/dudas.py" listar ;;
     --preparar) shift; [[ $# -gt 0 ]] || { ayuda >&2; exit 2; }; preparar "$@"; exit 0 ;;
@@ -178,6 +186,7 @@ done
 [[ -n "$video" ]] || { ayuda >&2; exit 2; }
 [[ -f "$video" ]] || { echo "practicar: no encuentro el video: $video" >&2; exit 2; }
 marca_de "$video"
+destino="${destino:-$destino_carpeta}"
 [[ -n "$srt" ]] || { descargar_srt "$video" || true; srt="${video%.*}.srt"; }
 [[ -f "$srt" ]] || { echo "practicar: no encuentro los subtítulos: $srt" >&2; exit 2; }
 
@@ -200,5 +209,5 @@ done
 
 exec mpv --sub-file="$srt" --sub-visibility=no \
     --script="$mpv_dir/audiotrans.lua" \
-    --script-opts="audiotrans-srt=$(readlink -f "$srt"),audiotrans-json=${json:+$(readlink -f "$json")},audiotrans-python=$python,audiotrans-lib=$(readlink -f "$lib"),audiotrans-textrans=$(readlink -f "$lib/../bin/textrans"),audiotrans-destino=$destino" \
+    --script-opts="audiotrans-srt=$(readlink -f "$srt"),audiotrans-json=${json:+$(readlink -f "$json")},audiotrans-python=$python,audiotrans-lib=$(readlink -f "$lib"),audiotrans-textrans=$(readlink -f "$lib/../bin/textrans"),audiotrans-origen=$original,audiotrans-destino=$destino" \
     "$video"

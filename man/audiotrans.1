@@ -128,16 +128,18 @@ atrasarlos 0.1 s (r, t, y y d lo toman en cuenta). Normalmente no hace falta,
 porque los subtítulos se sincronizan solos.
 .PP
 Cada serie o película va en su carpeta, con un archivo vacío llamado
-\fBtt\fR\fInúmero\fR: su ID de IMDb (está en la dirección,
-imdb.com/title/tt1358522/), por ejemplo
-\fBtouch ~/Videos/white\-collar/tt1358522\fR. Si el nombre del video tiene
-temporada y episodio (s1\-e3, S01E03, 1x03), es un episodio de esa serie; si
-no, la película.
+\fBtt\fR\fInúmero\fR[\fB.\fR\fIoriginal\fR\fB\-\fR\fIdestino\fR]: su ID de IMDb
+(está en la dirección, imdb.com/title/tt1358522/) y el par de idiomas, el
+original, que es el que se practica, y al que se traduce (sin par,
+\fIen\-es\fR). Por ejemplo \fBtouch ~/Videos/amelie/tt0211915.fr\-es\fR. Si el
+nombre del video tiene temporada y episodio (s1\-e3, S01E03, 1x03), es un
+episodio de esa serie; si no, la película. \fB\-\fR\fIdestino\fR cambia la
+traducción solo esa vez.
 .PP
 Sin \fIsubtítulos.srt\fR usa el archivo con el mismo nombre que el video, y
-si no existe lo baja de OpenSubtitles en inglés (\fIsubtitulos.py\fR): primero
-por el hash del archivo y, si no hay, por el ID de IMDb, que es obligatorio
-para bajarlos. En ese caso baja
+si no existe lo baja de OpenSubtitles en el idioma original
+(\fIsubtitulos.py\fR): primero por el hash del archivo y, si no hay, por el ID
+de IMDb, que es obligatorio para bajarlos. En ese caso baja
 hasta 3 versiones, una por fuente (TV, WEB, DVD), porque las de TV suelen tener
 otros cortes, y se queda con la que mejor coincide con la voz ya sincronizada.
 También con \fB\-\-preparar\fR.
