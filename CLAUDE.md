@@ -21,6 +21,7 @@ Notas para trabajar en el código. Qué hace la herramienta y por qué está dis
 - **Tiempo real:** no uses las bocinas, porque `-s` graba *todo* lo que suena (Firefox ya contaminó una prueba). Genera las frases con `espeak-ng -w`, concaténalas con silencios usando `ffmpeg` en un `.raw` s16le de 16 kHz mono, y mándalo a `lib/tiempo_real.py` a velocidad real con un script que escriba bloques y duerma. Así se miden retrasos exactos y la prueba se puede repetir.
 - **Instalación:** `AUDIOTRANS_DATOS=$(mktemp -d) ./instalar.sh` prueba la instalación desde cero (descarga ~580 MB). Recuerda que también reescribe los enlaces de `~/.local/bin`.
 - `espeak-ng` es más difícil de transcribir que una voz real, sobre todo en español: un error con espeak no siempre es un error real.
+- **Precisión de `-r`:** usa `pruebas/` (Mini LibriSpeech, WER contra la referencia). `simular.py` usa el mismo `frases.Segmentador` y el mismo `whisper_corto` que `tiempo_real.py`, sin esperar en tiempo real. Si cambias el corte de frases, cámbialo en `frases.py` y no dupliques la lógica. Para confirmar, pasa un flujo convertido a `.raw` por `tiempo_real.py` a velocidad real.
 
 ## Mediciones de rendimiento
 
@@ -34,6 +35,7 @@ Notas para trabajar en el código. Qué hace la herramienta y por qué está dis
 - **`av==15.1.0`:** PyAV 16 o posterior rompe faster-whisper 1.2.1, porque `av.open()` ya no acepta `metadata_errors`.
 - **El venv no se puede mover:** los ejecutables de `venv/bin` tienen la ruta absoluta en el shebang. Si se mueve, hay que corregirlos con `sed` (ya pasó).
 - **`lib/whisper_corto.py`:** llama directamente a `modelo.model.encode/detect_language/generate` de CTranslate2, que es API interna de faster-whisper. Revísalo al actualizar faster-whisper o CTranslate2. Con la ventana corta son necesarios el tope `max_length` (~10 tokens por segundo) y `_sin_bucle`, porque sin ellos Whisper repite la frase en bucle, sobre todo `base` con beam=1. Los cuadros de la ventana deben ser pares.
+- **El contexto de `-r`** (las 2 frases anteriores con `<|startofprev|>`, máximo 100 tokens) se reinicia si cambia el idioma detectado. No se usa con `-f`, porque no se midió con `base`.
 - **La detección en/es de `lib/texto.py`** exige una ventaja de 2 palabras, porque palabras como "la", "de" o "que" existen en francés, italiano y portugués ("Bonjour, où est la gare?" salía como español). Si no está clara, va a Google, y sin red supone el otro idioma del par.
 - **`lib/traduccion.py`** usa la API no oficial `translate.googleapis.com/translate_a/single?client=gtx`, la misma de translate-shell. Si deja de funcionar, cae a `trans -4`; sin `-4`, `trans` se colgaba por IPv6.
 - **Ctrl+C en tiempo real** termina con `os._exit(0)`, porque el hilo lector queda bloqueado en stdin y un cierre normal aborta Python.

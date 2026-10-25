@@ -5,7 +5,7 @@ audiotrans, textrans, es, en, cbes, cben, pses, psen, mes, men, ses, sen \- trad
 .B audiotrans
 .RB [ \-s ]
 .RB [ \-l | \-r ]
-.RB [ \-f ]
+.RB [ \-f | \-p ]
 .RB [ \-g ]
 .RB [ \-\fIorigen\fR ]
 .I destino
@@ -18,7 +18,7 @@ audiotrans, textrans, es, en, cbes, cben, pses, psen, mes, men, ses, sen \- trad
 |
 .B sen
 .RB [ \-l | \-r ]
-.RB [ \-f ]
+.RB [ \-f | \-p ]
 .RB [ \-g ]
 .RB [ \-\fIorigen\fR ]
 .br
@@ -56,7 +56,9 @@ Al presionar Enter sigue grabando 0.6 s más para no cortar la última palabra.
 Con \fB\-r\fR no hace falta presionar Enter: escucha sin parar, cierra cada
 frase al detectar una pausa de medio segundo (o a los 10 s si nadie hace pausa)
 y la traduce mientras sigue escuchando. Cada traducción aparece alrededor de
-0.5 s después de terminar la frase (0.25 s con \fB\-f\fR).
+0.6 s después de terminar la frase (0.25 s con \fB\-f\fR, ~2 s con \fB\-p\fR).
+Whisper recibe las dos frases anteriores como contexto, lo que casi divide entre
+dos los errores (ver NOTAS).
 .SS textrans
 .B textrans
 traduce
@@ -103,6 +105,15 @@ Para emergencias (poca RAM o la CPU ocupada): usa el modelo \fBbase\fR (si
 tarda ~0.25 s por frase y, con \fB\-r\fR, cierra las frases con 0.35 s de
 pausa en vez de 0.5 s. Se equivoca más, sobre todo en español y con nombres,
 números y palabras poco comunes.
+.TP
+.BR \-p ", " \-\-preciso
+Con \fB\-r\fR, entender mejor a cambio de más retraso: cierra las frases con
+0.8 s de pausa en vez de 0.5 s, permite frases de hasta 15 s y usa una ventana
+mínima de 15 s. Con voz real, el error por palabra baja de 8.8 % a 4.3 %
+(con ruido de fondo, de 8.9 % a 6.4 %), y cada frase tarda ~1.3 s en
+transcribirse en vez de ~0.6 s. Conviene para películas y videos con música o
+efectos. No se puede combinar con \fB\-f\fR. Sin \fB\-r\fR no cambia nada: el
+modo con Enter ya usa la ventana de 15 s.
 .TP
 .BR \-g ", " \-\-google
 Traducir con Google aunque haya modelo local. Entiende mejor los modismos y la
@@ -193,6 +204,9 @@ Traduce al español, en bucle, lo que suena en la computadora, sabiendo que est�
 .B ses \-en \-r
 Lo mismo, pero en tiempo real, sin presionar Enter.
 .TP
+.B ses \-en \-r \-p
+Tiempo real entendiendo mejor, para películas o videos con ruido de fondo.
+.TP
 .B ses \-en \-r \-f
 Tiempo real con el modelo rápido.
 .TP
@@ -223,6 +237,14 @@ Con ventanas cortas Whisper a veces repite la frase en bucle; se limita el texto
 a ~10 tokens por segundo de audio y se quitan las repeticiones exactas.
 Se usan 4 hilos: en este CPU (i3\-N305, 8 núcleos eficientes) 8 hilos son más
 lentos.
+.PP
+Precisión en tiempo real, medida con ~8 min de voz real de tres lectores (Mini
+LibriSpeech) y su transcripción de referencia; ver \fIpruebas/\fR en el
+repositorio. Error por palabra sin ruido / con ruido rosa a 10 dB: sin contexto
+14.9 % / 16.8 %; con las dos frases anteriores como contexto 8.8 % / 8.9 % (lo
+que usa \fB\-r\fR); con frases más largas (pausa de 0.8 s, hasta 15 s) además
+4.5 % / 7.5 %; con ventana de 15 s además 4.3 % / 6.4 % (\fB\-p\fR). Una ventana
+de 30 s no mejora más y tarda el doble. El contexto se reinicia si cambia el idioma.
 .PP
 Precisión en el modo con Enter: búsqueda más amplia (\fIbeam_size\fR 10) y
 filtro de voz con 600 ms de margen. Las grabaciones de más de 28 s de voz se

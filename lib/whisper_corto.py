@@ -14,6 +14,7 @@ import numpy as np
 
 MAX_DURACION = 28
 TASA = 16000
+MAX_CONTEXTO = 100  # tokens del texto anterior que se le pasan a Whisper (admite hasta 223)
 
 
 def _sin_bucle(texto):
@@ -27,10 +28,11 @@ def _sin_bucle(texto):
     return texto
 
 
-def transcribir(modelo, audio, idioma=None, beam_size=5, ventana_min=0):
+def transcribir(modelo, audio, idioma=None, beam_size=5, ventana_min=0, contexto=""):
     """Devuelve (texto, idioma). audio: float32 mono a 16 kHz. Texto vacío si no hay voz.
 
     ventana_min: segundos mínimos de ventana; más grande es más lento pero más preciso.
+    contexto: texto anterior; Whisper lo usa como pista para nombres y el tema.
     """
     tok = modelo.hf_tokenizer
     caracteristicas = modelo.feature_extractor(audio)
@@ -46,6 +48,9 @@ def transcribir(modelo, audio, idioma=None, beam_size=5, ventana_min=0):
         idioma = modelo.model.detect_language(codificado)[0][0][0][2:-2]
 
     inicio = [tok.token_to_id(t) for t in ("<|startoftranscript|>", f"<|{idioma}|>", "<|transcribe|>", "<|notimestamps|>")]
+    if contexto:
+        previo = tok.encode(" " + contexto.strip(), add_special_tokens=False).ids[-MAX_CONTEXTO:]
+        inicio = [tok.token_to_id("<|startofprev|>"), *previo, *inicio]
     r = modelo.model.generate(
         codificado,
         [inicio],

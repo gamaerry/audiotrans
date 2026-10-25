@@ -24,6 +24,9 @@ Opciones:
   -r, --tiempo-real
                  escuchar sin parar y traducir cada frase al detectar una pausa,
                  sin presionar Enter (Ctrl+C sale); ~0.5 s por frase
+  -p, --preciso  con -r: entiende mucho mejor (errores por palabra: 9 % → 4 %,
+                 con ruido 9 % → 6 %) a cambio de ~2 s de retraso por frase
+                 en vez de ~0.6 s; para películas y videos con ruido
   -f, --rapido   para emergencias: modelo base (mitad de RAM, ~0.25 s por
                  frase, se equivoca más) y, con -r, pausas más cortas
   -g, --google   traducir con Google aunque haya modelo local (entiende mejor
@@ -42,6 +45,7 @@ Ejemplos:
   mes            escucha el micrófono y traduce al español
   ses -en -l     traduce al español, en bucle, lo que suena (en inglés)
   ses -en -r     lo mismo, pero en tiempo real
+  ses -en -r -p  lo mismo, entendiendo mejor (para películas con ruido)
   ses -en -r -f  lo mismo, con el modelo rápido
 
 Entorno:
@@ -62,7 +66,7 @@ Más detalles: man audiotrans
 EOF
 }
 
-destino="" origen="" bucle=false sistema=false real=false rapido=false google=false
+destino="" origen="" bucle=false sistema=false real=false rapido=false preciso=false google=false
 for arg in "$@"; do
     case "$arg" in
         -h|--help) ayuda; exit 0 ;;
@@ -70,6 +74,7 @@ for arg in "$@"; do
         -s|--sistema) sistema=true ;;
         -r|--tiempo-real) real=true ;;
         -f|--rapido) rapido=true ;;
+        -p|--preciso) preciso=true ;;
         -g|--google) google=true ;;
         -[a-z][a-z]|-[a-z][a-z][a-z]) origen="${arg#-}" ;;
         -*) echo "audiotrans: opción desconocida: $arg (ver --help)" >&2; exit 2 ;;
@@ -82,8 +87,14 @@ if [[ -n "$origen" ]]; then
         || { echo "audiotrans: idioma de origen desconocido para Whisper: $origen" >&2; exit 2; }
 fi
 
+if $rapido && $preciso; then
+    echo "audiotrans: -f y -p son opuestos; usa solo uno" >&2; exit 2
+fi
 if $rapido; then
     export AUDIOTRANS_MODEL="${AUDIOTRANS_MODEL:-base}" AUDIOTRANS_RAPIDO=1
+fi
+if $preciso; then
+    export AUDIOTRANS_PRECISO=1
 fi
 if $google; then
     export AUDIOTRANS_EN_LINEA=1

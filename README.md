@@ -3,7 +3,7 @@
 Traduce desde la terminal lo que escucha el micrófono, lo que suena en la computadora o un texto, sin depender de internet para inglés↔español. Funciona en una laptop modesta sin GPU, con tiempo real de ~0.5 s por frase.
 
 ```console
-$ ses -r                      # lo que suena en la computadora → español, en tiempo real
+$ ses -r -p                   # lo que suena en la computadora → español, en tiempo real
 ● Escuchando en tiempo real... (Ctrl+C para salir)
 
 Where is the nearest pharmacy?
@@ -35,6 +35,7 @@ Opciones de los comandos de audio (`audiotrans`):
 | `-r`, `--tiempo-real` | escucha sin parar y traduce cada frase al detectar una pausa |
 | `-l`, `--loop` | repite el modo con Enter |
 | `-<origen>` | idioma del audio (`-en`, `-ja`…); si no se da, se detecta |
+| `-p`, `--preciso` | con `-r`: frases más largas y ventana de 15 s; ~4 % de error en lugar de ~9 %, con ~2 s de retraso |
 | `-f`, `--rapido` | modelo `base`: la mitad de RAM, ~0.25 s por frase, menos preciso |
 | `-g`, `--google` | traduce con Google aunque haya modelo local (entiende jerga) |
 | `-s`, `--sistema` | graba la salida de audio en lugar del micrófono |
@@ -61,7 +62,7 @@ Como son enlaces, lo que cambies en el repo se usa al instante.
 
 ## Descubrimientos
 
-Todo se midió en una laptop con **Intel i3-N305** (8 núcleos eficientes, AVX2 + AVX-VNNI, sin GPU) y 8 GB de RAM. Las frases de prueba se generaron con `espeak-ng`. Esa voz robótica es más difícil de transcribir que una voz real, así que la precisión real debería ser igual o mejor.
+Todo se midió en una laptop con **Intel i3-N305** (8 núcleos eficientes, AVX2 + AVX-VNNI, sin GPU) y 8 GB de RAM. Las mediciones de velocidad usan frases generadas con `espeak-ng`, una voz robótica más difícil de transcribir que una real. La precisión en tiempo real (sección 5) se midió con voz humana real y su transcripción de referencia.
 
 ### 1. Whisper desperdicia el 80 % del tiempo en relleno
 
@@ -108,7 +109,21 @@ El i3-N305 agrupa sus 8 núcleos en 2 bloques de 4 que comparten caché L2. Con 
 
 OPUS-MT traduce casi igual que Google en frases normales, pero es inconsistente con los modismos. "La neta no tengo idea de qué estás hablando." → "The net has no idea what you're talking about." (aunque "la neta no tengo idea" sí sale bien), y "Me late que va a llover, mejor llévate un paraguas." → "It beats me that it's going to rain…". Para eso está `-g`. Argos Translate también funciona con CTranslate2, pero su modelo español→inglés usa otro formato de tokenizador y pesa 300 MB.
 
-### 5. Modelos descartados
+### 5. En tiempo real, lo que más ayuda es el contexto
+
+Para medir la precisión con voz real usé [Mini LibriSpeech](https://www.openslr.org/31/): ~8 min de frases seguidas de tres lectores, con su transcripción de referencia, en versión limpia y con ruido rosa 10 dB por debajo de la voz. El audio pasa por el mismo código del modo `-r` (ver [`pruebas/`](pruebas/)):
+
+| Configuración | Error por palabra | Con ruido | Transcribir una frase |
+|---|---|---|---|
+| frases sueltas (como estaba) | 14.9 % | 16.8 % | 0.48 s |
+| **+ las 2 frases anteriores como contexto** (`-r`) | **8.8 %** | **8.9 %** | 0.62 s |
+| + frases más largas (pausa de 0.8 s, hasta 15 s) | 4.5 % | 7.5 % | 0.75 s |
+| **+ ventana de 15 s** (`-r -p`) | **4.3 %** | **6.4 %** | 1.34 s |
+| + ventana de 30 s | 4.9 % | 6.5 % | 2.81 s |
+
+Whisper acepta el texto anterior como pista (`<|startofprev|>`). Eso le da el tema y los nombres, y casi divide los errores entre dos por 0.14 s más. Además, cortar con una pausa de 0.5 s parte las frases a la mitad; esperar 0.8 s da frases más completas. Con el código real de `-r` a velocidad real, uno de los flujos con ruido pasó de 17.2 % a 6.2 % de error con `-r`, y a 2.6 % con `-p`.
+
+### 6. Modelos descartados
 
 | Modelo | Por qué no |
 |---|---|
@@ -123,11 +138,13 @@ OPUS-MT traduce casi igual que Google en frases normales, pero es inconsistente 
 bin/audiotrans      graba (micrófono o sistema) y coordina todo
 bin/textrans        traduce texto
 lib/whisper_corto.py   Whisper con ventana ajustada (descubrimientos 1 y 2)
-lib/tiempo_real.py     modo -r: VAD, cierre de frases y traducción en paralelo
+lib/tiempo_real.py     modo -r: contexto entre frases y traducción en paralelo
+lib/frases.py          corta el audio continuo en frases con el VAD
 lib/transcribir.py     modo con Enter
 lib/traduccion.py      local (OPUS-MT) primero, luego Google y luego trans
 lib/texto.py           detección en/es por palabras frecuentes, para textrans
 man/audiotrans.1       manual
+pruebas/               medición de precisión con voz real (Mini LibriSpeech)
 alias.sh            los alias
 instalar.sh         instalación
 ```
