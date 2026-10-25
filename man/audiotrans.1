@@ -41,6 +41,11 @@ audiotrans, textrans, practicar, es, en, cbes, cben, pses, psen, mes, men, ses, 
 .RI [ subtítulos.srt ]
 .RB [ \-\fIdestino\fR ]
 .br
+.br
+.B practicar \-\-preparar
+.I video
+.RI [ video ...]
+.br
 .B practicar dudas
 .SH DESCRIPCIÓN
 .B audiotrans
@@ -127,6 +132,16 @@ un desfase que cambia a lo largo del episodio (por cortes o pausas distintas),
 que \fBz\fR/\fBx\fR no pueden arreglar porque mueven todo por igual. El
 resultado queda en \fI~/.cache/audiotrans/sincronizados/\fR y el \fI.srt\fR
 original no se modifica. Con \fB\-\-sin\-sincronizar\fR se usa tal cual.
+.PP
+\fBpracticar \-\-preparar\fR \fIvideo\fR... hace además, con anticipación, que
+Whisper transcriba el episodio con marcas por palabra (\fIalinear.py\fR, ~8 min
+por episodio con prioridad baja) y ubique la primera y la última palabra de cada
+línea. En White Collar 1x01 quedó así el 75 % de las líneas; para esas, \fBr\fR
+empieza 0.5 s antes en lugar de 0.9 s y termina 0.4 s después, y las demás
+(canciones, frases muy cortas o que Whisper oyó distinto) conservan los márgenes
+amplios. Conviene correrlo cuando no se use la computadora, por ejemplo
+\fBpracticar \-\-preparar ~/Videos/serie/*.mp4\fR; los episodios ya preparados se
+saltan. Al abrir un episodio preparado no se usa CPU extra.
 El texto se quita al reanudar la reproducción. \fBpracticar dudas\fR lista
 las dudas guardadas. Las teclas r, R, t y d reemplazan, solo en esta sesión,
 las de mpv para mover los subtítulos y desentrelazar.
@@ -248,8 +263,10 @@ Enlaces a los comandos en \fIbin/\fR del repositorio, que los instala
 \fBtextrans\fR y \fItraduccion.py\fR, que decide entre el modelo local y Google.
 .TP
 .I ~/.cache/audiotrans/sincronizados/
-Subtítulos ya sincronizados de \fBpracticar\fR, uno por combinación de video y
-\fI.srt\fR; se vuelven a generar si alguno cambia. Se pueden borrar.
+Subtítulos ya sincronizados de \fBpracticar\fR (\fI.srt\fR), y los de
+\fB\-\-preparar\fR (\fI.exacto.srt\fR y \fI.json\fR, que dice qué líneas tienen
+tiempo exacto). Uno por combinación de video y \fI.srt\fR; se vuelven a generar
+si alguno cambia. Se pueden borrar.
 .TP
 .I ~/.local/share/audiotrans/dudas/
 Dudas de \fBpracticar\fR: \fIdudas.jsonl\fR (una por línea: episodio, tiempos,

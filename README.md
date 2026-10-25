@@ -42,6 +42,8 @@ He didn't say a word, but his eyes told me everything.
 
 Usa el `.srt` con el mismo nombre que el video. Muchos `.mkv` traen los subtítulos dentro y se extraen con `ffmpeg -i video.mkv -map 0:s:0 video.srt`. La primera vez que abres un episodio, los subtítulos se **sincronizan con el audio por tramos** (~15 s, se guarda en caché): si el `.srt` es de otra versión del video, cada parte del episodio se corrige por separado. `practicar dudas` lista lo guardado.
 
+Para que `r` repita con el tiempo exacto, prepara los episodios con anticipación, cuando no uses la computadora: `practicar --preparar ~/Videos/serie/*.mp4`. Whisper ubica cada línea palabra por palabra (~8 min por episodio, con prioridad baja). Al verlos ya no se usa CPU extra.
+
 Opciones de los comandos de audio (`audiotrans`):
 
 | Opción | |
@@ -149,6 +151,8 @@ Los `.srt` descargados suelen ser de otra versión del video. En White Collar 1x
 
 Aun sincronizado, cada línea tiene su propio error de tiempo, porque quien hace los subtítulos no los ajusta al milisegundo. Por eso `r` empieza 0.9 s antes y termina 0.5 s después: con el inicio de cada palabra medido en 120 líneas, 0.9 s cubre el 95 % de los inicios (0.3 s solo el 84 %), y 0.5 s el 100 % de los finales. Ajustar cada inicio a donde el VAD detecta voz lo empeoró (de 14 % a 17–24 % de líneas que empezaban tarde), porque con música y efectos el VAD no es preciso al décimo de segundo.
 
+Con `practicar --preparar`, [`lib/alinear.py`](lib/alinear.py) transcribe el episodio entero con marcas por palabra y ubica la primera y la última palabra de cada línea cerca de donde dice el `.srt`. En 1x01 encontró el 75 % de las líneas, en 7 min 53 s. Las que faltan son canciones, frases muy cortas y frases que Whisper oyó distinto. Contra una medición aparte, 0.5 s de margen cubre el 95 % de esos inicios y 0.4 s el 100 % de los finales, así que esas líneas se repiten casi sin oír la anterior.
+
 Una lección: medir con el inicio de los segmentos de Whisper, en lugar de por palabra, sugirió que el desfase cambiaba hacia el final, cuando en realidad era constante.
 
 ### 7. Modelos descartados
@@ -169,6 +173,7 @@ bin/practicar       abre un video en mpv para practicar listening
 mpv/audiotrans.lua  teclas r/R/t/y/d dentro de mpv
 lib/dudas.py        guarda las dudas con su fragmento de audio
 lib/sincronizar.py  sincroniza el .srt con el audio por tramos
+lib/alinear.py      ubica cada línea palabra por palabra (practicar --preparar)
 lib/whisper_corto.py   Whisper con ventana ajustada (descubrimientos 1 y 2)
 lib/tiempo_real.py     modo -r: contexto entre frases y traducción en paralelo
 lib/frases.py          corta el audio continuo en frases con el VAD

@@ -10,7 +10,7 @@ local mp = require "mp"
 local utils = require "mp.utils"
 local options = require "mp.options"
 
-local opts = { srt = "", python = "", lib = "", textrans = "", destino = "es", origen = "en" }
+local opts = { srt = "", json = "", python = "", lib = "", textrans = "", destino = "es", origen = "en" }
 options.read_options(opts, "audiotrans")
 
 -- Cada línea del .srt tiene su propio error de tiempo, aunque esté sincronizada. Medido con
@@ -18,9 +18,14 @@ options.read_options(opts, "audiotrans")
 -- (0.3 s solo el 84 %), y terminar 0.5 s después, el 100 %
 local MARGEN_INICIO = 0.9
 local MARGEN_FIN = 0.5
+-- Con practicar --preparar, las líneas que Whisper ubicó palabra por palabra (75 % en 1x01)
+-- tienen su tiempo casi exacto: contra una medición aparte, 0.5 s antes cubre el 95 % de los
+-- inicios y 0.4 s después el 100 % de los finales
+local MARGEN_INICIO_EXACTO = 0.5
+local MARGEN_FIN_EXACTO = 0.4
 local LENTO = 0.75
 
-local lineas = {}        -- { inicio = s, fin = s, texto = "..." } en el tiempo del .srt
+local lineas = {}        -- { inicio = s, fin = s, texto = "...", inicio_exacto, fin_exacto } (tiempo del .srt)
 local foco = nil         -- índice de la línea con la que se está trabajando
 local pausar_en = nil    -- tiempo (del video) en el que pausar al terminar una repetición
 local velocidad = nil    -- velocidad de antes de una repetición lenta, para restaurarla
@@ -53,6 +58,24 @@ local function cargar_srt(ruta)
     end
     table.sort(lineas, function(a, b) return a.inicio < b.inicio end)
     return #lineas > 0
+end
+
+local function cargar_json(ruta)
+    -- Generado por lib/alinear.py (practicar --preparar)
+    local f = io.open(ruta, "r")
+    if not f then return false end
+    local datos = utils.parse_json(f:read("*a"))
+    f:close()
+    for _, l in ipairs((datos and datos.lineas) or {}) do
+        if l.texto ~= "" then table.insert(lineas, l) end
+    end
+    table.sort(lineas, function(a, b) return a.inicio < b.inicio end)
+    return #lineas > 0
+end
+
+local function margenes(l)
+    return l.inicio_exacto and MARGEN_INICIO_EXACTO or MARGEN_INICIO,
+           l.fin_exacto and MARGEN_FIN_EXACTO or MARGEN_FIN
 end
 
 -- Los tiempos del .srt se desplazan con sub-delay (teclas z/x de mpv) por si el archivo va desfasado
@@ -115,8 +138,9 @@ local function repetir(i, lento)
         velocidad = mp.get_property_number("speed", 1)
         mp.set_property_number("speed", LENTO)
     end
-    pausar_en = l.fin + retraso() + MARGEN_FIN
-    mp.commandv("seek", tostring(math.max(0, l.inicio + retraso() - MARGEN_INICIO)), "absolute+exact")
+    local antes, despues = margenes(l)
+    pausar_en = l.fin + retraso() + despues
+    mp.commandv("seek", tostring(math.max(0, l.inicio + retraso() - antes)), "absolute+exact")
     mp.set_property_bool("pause", false)
 end
 
@@ -165,11 +189,13 @@ local function guardar_duda()
     local i = linea_en_foco()
     if not i then return mp.osd_message("Todavía no hay diálogo") end
     local l = lineas[i]
+    local antes, despues = margenes(l)
     mp.command_native_async({
         name = "subprocess", capture_stdout = true, capture_stderr = true, playback_only = false,
         args = { opts.python, utils.join_path(opts.lib, "dudas.py"), "guardar",
                  mp.get_property("path"), tostring(l.inicio + retraso()), tostring(l.fin + retraso()),
-                 l.texto, opts.origen, opts.destino },
+                 l.texto, opts.origen, opts.destino,
+                 tostring(l.inicio + retraso() - antes), tostring(l.fin + retraso() + despues) },
     }, function(ok, r)
         if ok and r.status == 0 then
             mp.osd_message("✓ Duda guardada: " .. r.stdout:gsub("%s+$", ""), 3)
@@ -179,15 +205,20 @@ local function guardar_duda()
     end)
 end
 
-if opts.srt ~= "" and cargar_srt(opts.srt) then
+local cargado
+if opts.json ~= "" then cargado = cargar_json(opts.json) else cargado = opts.srt ~= "" and cargar_srt(opts.srt) end
+if cargado then
     mp.add_forced_key_binding("r", "audiotrans-repetir", function() repetir(foco or linea_reciente()) end)
     mp.add_forced_key_binding("R", "audiotrans-lento", function() repetir(foco or linea_reciente(), true) end)
     mp.add_forced_key_binding("t", "audiotrans-texto", mostrar_texto)
     mp.add_forced_key_binding("y", "audiotrans-traduccion", mostrar_traduccion)
     mp.add_forced_key_binding("d", "audiotrans-duda", guardar_duda)
+    local exactas = 0
+    for _, l in ipairs(lineas) do if l.inicio_exacto and l.fin_exacto then exactas = exactas + 1 end end
+    local preparado = opts.json ~= "" and string.format(" (%d %% con tiempo exacto)", math.floor(100 * exactas / #lineas)) or ""
     mp.register_event("file-loaded", function()
-        mp.osd_message(#lineas .. " líneas · r repetir · R más lento · t texto · y traducción · d guardar duda", 6)
+        mp.osd_message(#lineas .. " líneas" .. preparado .. " · r repetir · R más lento · t texto · y traducción · d guardar duda", 6)
     end)
 else
-    mp.msg.warn("audiotrans: no se pudo leer el .srt: " .. opts.srt)
+    mp.msg.warn("audiotrans: no se pudieron leer los subtítulos: " .. (opts.json ~= "" and opts.json or opts.srt))
 end

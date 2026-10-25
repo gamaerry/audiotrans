@@ -1,6 +1,6 @@
 """Registro de las dudas de listening: cada línea guardada con su audio, para repasarla después.
 
-Uso: dudas.py guardar <video> <inicio> <fin> <texto> <origen> <destino>
+Uso: dudas.py guardar <video> <inicio> <fin> <texto> <origen> <destino> [<inicio audio> <fin audio>]
      dudas.py listar
 Las dudas quedan en $AUDIOTRANS_DATOS/dudas/: dudas.jsonl y un .mp3 por línea.
 """
@@ -15,21 +15,23 @@ from traduccion import DATOS, traducir
 
 CARPETA = os.path.join(DATOS, "dudas")
 REGISTRO = os.path.join(CARPETA, "dudas.jsonl")
-# s de audio antes y después de la línea, los mismos que usa r en mpv/audiotrans.lua: el
-# .srt tiene errores por línea y empezar 0.9 s antes cubre el 95 % (medido con Whisper)
+# s de audio antes y después de la línea si mpv no indica otros (mpv/audiotrans.lua pasa los
+# mismos que usa r): el .srt tiene errores por línea y empezar 0.9 s antes cubre el 95 %
 MARGEN_INICIO = 0.9
 MARGEN_FIN = 0.5
 
 
-def guardar(video, inicio, fin, texto, origen, destino):
+def guardar(video, inicio, fin, texto, origen, destino, audio_inicio=None, audio_fin=None):
     inicio, fin = float(inicio), float(fin)
+    audio_inicio = max(0.0, float(audio_inicio) if audio_inicio else inicio - MARGEN_INICIO)
+    audio_fin = float(audio_fin) if audio_fin else fin + MARGEN_FIN
     episodio = os.path.splitext(os.path.basename(video))[0]
     ident = f"{re.sub(r'[^A-Za-z0-9_-]', '_', episodio)}-{inicio:07.1f}"
     os.makedirs(os.path.join(CARPETA, "audio"), exist_ok=True)
     audio = os.path.join("audio", f"{ident}.mp3")
     subprocess.run(
-        ["ffmpeg", "-v", "error", "-y", "-ss", f"{max(0, inicio - MARGEN_INICIO):.3f}", "-i", video,
-         "-t", f"{fin - inicio + MARGEN_INICIO + MARGEN_FIN:.3f}", "-vn", "-ac", "1", "-c:a", "libmp3lame", "-q:a", "4",
+        ["ffmpeg", "-v", "error", "-y", "-ss", f"{audio_inicio:.3f}", "-i", video,
+         "-t", f"{audio_fin - audio_inicio:.3f}", "-vn", "-ac", "1", "-c:a", "libmp3lame", "-q:a", "4",
          os.path.join(CARPETA, audio)],
         check=True,
     )
@@ -64,7 +66,7 @@ def listar():
 
 if __name__ == "__main__":
     accion = sys.argv[1] if len(sys.argv) > 1 else ""
-    if accion == "guardar" and len(sys.argv) == 8:
+    if accion == "guardar" and len(sys.argv) in (8, 10):
         guardar(*sys.argv[2:])
     elif accion == "listar":
         listar()

@@ -6,10 +6,12 @@ lib="$(dirname "$(readlink -f "$0")")/../lib"
 mpv_dir="$(dirname "$(readlink -f "$0")")/../mpv"
 export AUDIOTRANS_DATOS="${AUDIOTRANS_DATOS:-$HOME/.local/share/audiotrans}"
 python="$AUDIOTRANS_DATOS/venv/bin/python"
+cache="$HOME/.cache/audiotrans/sincronizados"
 
 ayuda() {
     cat <<'EOF'
 Uso: practicar <video> [subtítulos.srt] [-<destino>]
+     practicar --preparar <video> [<video> ...]
      practicar dudas
 
 Abre el video en mpv con los subtítulos ocultos. Cuando no entiendas algo:
@@ -23,14 +25,70 @@ Abre el video en mpv con los subtítulos ocultos. Cuando no entiendas algo:
 
 Sin .srt se usa el que tenga el mismo nombre que el video. La primera vez que
 se abre un episodio, los subtítulos se sincronizan con el audio por tramos
-(~15 s) y el resultado se guarda en ~/.cache/audiotrans/sincronizados/.
-Con --sin-sincronizar se usan tal cual. La traducción va al español; para
-otro idioma, p. ej. -fr. "practicar dudas" lista las dudas guardadas
-(en ~/.local/share/audiotrans/dudas/).
+(~15 s); con --sin-sincronizar se usan tal cual.
+
+--preparar ubica además cada línea en el audio palabra por palabra con
+Whisper (~8 min de CPU por episodio, con prioridad baja), para que r
+repita con el tiempo exacto. Conviene hacerlo antes, cuando no uses la
+computadora, p. ej.: practicar --preparar ~/Videos/white-collar/*.mp4
+Todo se guarda en ~/.cache/audiotrans/sincronizados/.
+
+La traducción va al español; para otro idioma, p. ej. -fr. "practicar dudas"
+lista las dudas guardadas (en ~/.local/share/audiotrans/dudas/).
 EOF
 }
 
+base_de() {
+    # Un archivo por combinación de video y .srt (ruta, fecha y tamaño): si cambia
+    # cualquiera de los dos, se vuelve a procesar
+    local clave
+    clave="$(stat -c '%n %Y %s' "$(readlink -f "$1")" "$(readlink -f "$2")" | sha1sum | cut -c1-12)"
+    echo "$cache/$(basename "${1%.*}")-$clave"
+}
+
+sincronizar() {
+    # Escribe <base>.srt sincronizado por tramos si todavía no existe; devuelve 1 si falla
+    local video="$1" srt="$2" base="$3"
+    [[ -f "$base.srt" ]] && return 0
+    mkdir -p "$cache"
+    echo "Sincronizando los subtítulos con el audio (~15 s)..."
+    if "$python" "$lib/sincronizar.py" "$video" "$srt" "$base.srt.tmp" 2>/dev/null \
+        | awk '{v=$3+0; if (NR==1||v<a) a=v; if (NR==1||v>b) b=v} END {printf "  listo: los subtítulos se movieron entre %+.2f y %+.2f s según el tramo\n", a, b}'; then
+        mv "$base.srt.tmp" "$base.srt"
+    else
+        rm -f "$base.srt.tmp"
+        return 1
+    fi
+}
+
+preparar() {
+    local video srt base inicio
+    for video in "$@"; do
+        srt="${video%.*}.srt"
+        echo "== $(basename "$video")"
+        [[ -f "$video" ]] || { echo "  no encuentro el video" >&2; continue; }
+        [[ -f "$srt" ]] || { echo "  no encuentro los subtítulos: $srt" >&2; continue; }
+        base="$(base_de "$video" "$srt")"
+        [[ -f "$base.json" ]] && { echo "  ya estaba preparado"; continue; }
+        sincronizar "$video" "$srt" "$base" || { echo "  no se pudo sincronizar" >&2; continue; }
+        echo "  ubicando cada línea en el audio con Whisper (~8 min)..."
+        inicio=$SECONDS
+        if nice -n 19 "$python" "$lib/alinear.py" "$video" "$base.srt" "$base.json.tmp" "$base.exacto.srt.tmp" 2> >(grep --line-buffered -v -i warn >&2); then
+            mv "$base.exacto.srt.tmp" "$base.exacto.srt"
+            mv "$base.json.tmp" "$base.json"
+            echo "  listo en $(( (SECONDS - inicio) / 60 )) min"
+        else
+            rm -f "$base.json.tmp" "$base.exacto.srt.tmp"
+            echo "  no se pudo alinear" >&2
+        fi
+    done
+}
+
 video="" srt="" destino="es" sincronizar=true
+case "${1:-}" in
+    dudas) exec "$python" "$lib/dudas.py" listar ;;
+    --preparar) shift; [[ $# -gt 0 ]] || { ayuda >&2; exit 2; }; preparar "$@"; exit 0 ;;
+esac
 for arg in "$@"; do
     case "$arg" in
         -h|--help) ayuda; exit 0 ;;
@@ -41,37 +99,29 @@ for arg in "$@"; do
     esac
 done
 
-if [[ "$video" == "dudas" ]]; then
-    exec "$python" "$lib/dudas.py" listar
-fi
 [[ -n "$video" ]] || { ayuda >&2; exit 2; }
 [[ -f "$video" ]] || { echo "practicar: no encuentro el video: $video" >&2; exit 2; }
 srt="${srt:-${video%.*}.srt}"
 [[ -f "$srt" ]] || { echo "practicar: no encuentro los subtítulos: $srt" >&2; exit 2; }
 
+json=""
 if $sincronizar; then
-    # Un archivo por combinación de video y .srt (ruta y fecha de modificación): si cambia
-    # cualquiera de los dos, se vuelve a sincronizar
-    cache="$HOME/.cache/audiotrans/sincronizados"
-    clave="$(stat -c '%n %Y %s' "$(readlink -f "$video")" "$(readlink -f "$srt")" | sha1sum | cut -c1-12)"
-    sincronizado="$cache/$(basename "${video%.*}")-$clave.srt"
-    if [[ ! -f "$sincronizado" ]]; then
-        mkdir -p "$cache"
-        echo "Sincronizando los subtítulos con el audio (solo la primera vez, ~15 s)..."
-        "$python" "$lib/sincronizar.py" "$video" "$srt" "$sincronizado.tmp" 2>/dev/null \
-            | awk '{v=$3+0; if (NR==1||v<a) a=v; if (NR==1||v>b) b=v} END {printf "  listo: los subtítulos se movieron entre %+.2f y %+.2f s según el tramo\n", a, b}' \
-            && mv "$sincronizado.tmp" "$sincronizado" \
-            || { rm -f "$sincronizado.tmp"; echo "practicar: no se pudo sincronizar; uso el .srt tal cual" >&2; sincronizado="$srt"; }
+    base="$(base_de "$video" "$srt")"
+    if [[ -f "$base.json" ]]; then
+        srt="$base.exacto.srt" json="$base.json"  # preparado con --preparar
+    elif sincronizar "$video" "$srt" "$base"; then
+        srt="$base.srt"
+    else
+        echo "practicar: no se pudo sincronizar; uso el .srt tal cual" >&2
     fi
-    srt="$sincronizado"
 fi
 
 # Las comas separan opciones en script-opts, así que las rutas no deben tenerlas
-for ruta in "$srt" "$lib" "$python"; do
+for ruta in "$srt" "$json" "$lib" "$python"; do
     [[ "$ruta" != *,* ]] || { echo "practicar: la ruta no puede tener comas: $ruta" >&2; exit 2; }
 done
 
 exec mpv --sub-file="$srt" --sub-visibility=no \
     --script="$mpv_dir/audiotrans.lua" \
-    --script-opts="audiotrans-srt=$(readlink -f "$srt"),audiotrans-python=$python,audiotrans-lib=$(readlink -f "$lib"),audiotrans-textrans=$(readlink -f "$lib/../bin/textrans"),audiotrans-destino=$destino" \
+    --script-opts="audiotrans-srt=$(readlink -f "$srt"),audiotrans-json=${json:+$(readlink -f "$json")},audiotrans-python=$python,audiotrans-lib=$(readlink -f "$lib"),audiotrans-textrans=$(readlink -f "$lib/../bin/textrans"),audiotrans-destino=$destino" \
     "$video"
