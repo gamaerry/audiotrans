@@ -1,9 +1,10 @@
 """Descarga de OpenSubtitles los subtítulos de un video, para practicar cuando no trae .srt.
 
-Uso: subtitulos.py <video> <salida.srt> [idioma]
-Busca primero por el hash del archivo (el mismo video, así que casi no hay desfase) y, si no
-hay, por serie, temporada y episodio sacados de la ruta: ~/Videos/white-collar/s1-e3.mp4 busca
-"white collar" 1x03. En ese caso baja hasta CANDIDATOS, uno por cada fuente (TV, WEB, DVD...),
+Uso: subtitulos.py <video> <salida.srt> <IMDb ID> [idioma]
+El IMDb ID es el de la serie o la película (practicar lo toma de un archivo tt<número> en la
+carpeta del video). Si el nombre del video tiene temporada y episodio (s1-e3, S01E03, 1x03), es
+un episodio de esa serie; si no, la película. Busca primero por el hash del archivo (el mismo
+video, así que casi no hay desfase) y, si no hay, por el IMDb ID. En ese caso baja hasta CANDIDATOS, uno por cada fuente (TV, WEB, DVD...),
 porque las versiones de una misma fuente tienen los mismos cortes, y se queda con el que, ya
 sincronizado, mejor coincide con la voz. La clave va en $AUDIOTRANS_DATOS/opensubtitles (api_key=..., y si hace
 falta usuario=... y contrasena=... para la cuota de descargas).
@@ -69,14 +70,16 @@ def hash_video(ruta):
 
 
 def episodio_de(ruta):
-    # (título, temporada, episodio) a partir del nombre; sin título en el nombre, usa la carpeta
+    # (temporada, episodio) a partir del nombre, o (None, None) si es una película
     nombre = os.path.splitext(os.path.basename(ruta))[0]
     m = re.search(r"[sS](\d{1,2})[ ._-]*[eE](\d{1,3})", nombre) or re.search(r"\b(\d{1,2})x(\d{1,3})\b", nombre)
-    titulo = nombre[: m.start()] if m else nombre
-    titulo = re.sub(r"[._-]+", " ", titulo).strip()
-    if not titulo:
-        titulo = re.sub(r"[._-]+", " ", os.path.basename(os.path.dirname(os.path.abspath(ruta)))).strip()
-    return titulo, (int(m.group(1)) if m else None), (int(m.group(2)) if m else None)
+    return (int(m.group(1)), int(m.group(2))) if m else (None, None)
+
+
+def de_la_obra(r, imdb):
+    # El hash puede coincidir con otra obra (archivos idénticos mal etiquetados): se exige el ID
+    d = r["attributes"].get("feature_details") or {}
+    return imdb in (d.get("parent_imdb_id"), d.get("imdb_id"))
 
 
 def buscar(config, **filtros):
@@ -142,19 +145,22 @@ def bajar(r, salida, config, token):
     return enlace.get("remaining")
 
 
-def descargar(video, salida, idioma="en"):
+def descargar(video, salida, imdb, idioma="en"):
     config = _config()
-    titulo, temporada, episodio = episodio_de(video)
+    imdb = int(re.sub(r"^tt", "", imdb))
+    temporada, episodio = episodio_de(video)
     resultados = [r for r in buscar(config, languages=idioma, moviehash=hash_video(video))
-                  if r["attributes"].get("moviehash_match")]
+                  if r["attributes"].get("moviehash_match") and de_la_obra(r, imdb)]
     ordenados = ordenar(resultados, temporada, episodio)
     if ordenados:
         elegidos = ordenados[:1]  # del mismo archivo: no hace falta comparar
-    else:
-        resultados = buscar(config, languages=idioma, query=titulo, season_number=temporada, episode_number=episodio)
+    elif temporada is not None:
+        resultados = buscar(config, languages=idioma, parent_imdb_id=imdb, season_number=temporada, episode_number=episodio)
         elegidos = candidatos(ordenar(resultados, temporada, episodio))
+    else:
+        elegidos = candidatos(ordenar(buscar(config, languages=idioma, imdb_id=imdb), None, None))
     if not elegidos:
-        etiqueta = f"{titulo} {temporada}x{episodio:02d}" if temporada is not None else titulo
+        etiqueta = f"tt{imdb:07d}" + (f" {temporada}x{episodio:02d}" if temporada is not None else "")
         sys.exit(f"subtitulos: no encontré subtítulos en '{idioma}' para {etiqueta}")
 
     token = None
@@ -185,6 +191,6 @@ def descargar(video, salida, idioma="en"):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) not in (3, 4):
+    if len(sys.argv) not in (4, 5):
         sys.exit(__doc__)
     descargar(sys.argv[1], sys.argv[2], *sys.argv[3:])

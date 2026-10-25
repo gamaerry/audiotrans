@@ -24,11 +24,16 @@ Abre el video en mpv con los subtítulos ocultos. Cuando no entiendas algo:
   v  mostrar u ocultar todos los subtítulos (tecla normal de mpv)
   z / x  adelantar o atrasar los subtítulos 0.1 s (normalmente no hace falta)
 
+Cada serie o película va en su carpeta, con un archivo vacío que dice su
+IMDb ID, p. ej.: touch ~/Videos/white-collar/tt1358522
+Con temporada y episodio en el nombre (s1-e3, S01E03, 1x03) es un episodio de
+esa serie; si no, la película.
+
 Sin .srt se usa el que tenga el mismo nombre que el video, y si no existe se
 baja de OpenSubtitles (clave en ~/.local/share/audiotrans/opensubtitles,
-como api_key=<clave>) por el hash del archivo o por la serie y el episodio
-de la ruta (p. ej. white-collar/s1-e3.mp4); en ese caso compara hasta 3
-versiones con el audio y se queda con la que mejor coincide. La primera vez que
+como api_key=<clave>): por el hash del archivo o, si no hay, por el IMDb ID,
+comparando hasta 3 versiones con el audio para quedarse con la que mejor
+coincide. La primera vez que
 se abre un episodio, los subtítulos se sincronizan con el audio por tramos
 (~15 s); con --sin-sincronizar se usan tal cual.
 
@@ -67,12 +72,33 @@ sincronizar() {
     fi
 }
 
+marca_de() {
+    # Lee el archivo tt<IMDb ID> de la carpeta del video y deja imdb (vacío si no hay)
+    local dir marcas
+    dir="$(cd "$(dirname "$1")" && pwd)"  # la carpeta del enlace, no la del archivo enlazado
+    imdb=""
+    mapfile -t marcas < <(find "$dir" -maxdepth 1 -type f -regextype posix-extended \
+        -regex '.*/tt[0-9]+' -printf '%f\n')
+    [[ ${#marcas[@]} -eq 0 ]] && return 0
+    if [[ ${#marcas[@]} -gt 1 ]]; then
+        echo "practicar: hay más de un archivo tt... en $dir: ${marcas[*]}" >&2
+        exit 2
+    fi
+    imdb="${marcas[0]}"
+}
+
 descargar_srt() {
     # Si falta <video>.srt, lo baja de OpenSubtitles (en inglés); devuelve 1 si no se pudo
     local video="$1" srt="${1%.*}.srt"
     [[ -f "$srt" ]] && return 0
+    if [[ -z "$imdb" ]]; then
+        echo "practicar: para bajar los subtítulos falta el IMDb ID de la serie o película:" >&2
+        echo "  touch \"$(cd "$(dirname "$video")" && pwd)/tt<número>\"" >&2
+        echo "  (el número está en la dirección de IMDb, p. ej. imdb.com/title/tt1358522/)" >&2
+        return 1
+    fi
     echo "Buscando los subtítulos en OpenSubtitles..."
-    if "$python" "$lib/subtitulos.py" "$video" "$srt.tmp"; then
+    if "$python" "$lib/subtitulos.py" "$video" "$srt.tmp" "$imdb"; then
         mv "$srt.tmp" "$srt"
     else
         rm -f "$srt.tmp"
@@ -86,6 +112,7 @@ preparar() {
         srt="${video%.*}.srt"
         echo "== $(basename "$video")"
         [[ -f "$video" ]] || { echo "  no encuentro el video" >&2; continue; }
+        marca_de "$video"
         descargar_srt "$video" || { echo "  no encuentro los subtítulos: $srt" >&2; continue; }
         base="$(base_de "$video" "$srt")"
         [[ -f "$base.json" ]] && { echo "  ya estaba preparado"; continue; }
@@ -150,6 +177,7 @@ done
 
 [[ -n "$video" ]] || { ayuda >&2; exit 2; }
 [[ -f "$video" ]] || { echo "practicar: no encuentro el video: $video" >&2; exit 2; }
+marca_de "$video"
 [[ -n "$srt" ]] || { descargar_srt "$video" || true; srt="${video%.*}.srt"; }
 [[ -f "$srt" ]] || { echo "practicar: no encuentro los subtítulos: $srt" >&2; exit 2; }
 
