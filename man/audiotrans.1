@@ -43,12 +43,11 @@ audiotrans, textrans, practicar, es, en, cbes, cben, pses, psen, mes, men, ses, 
 .br
 .br
 .B practicar \-\-preparar
-.I video
-.RI [ video ...]
+.I video\fR|\fIcarpeta
+.RI [ ... ]
 .br
 .B practicar \-\-estado
-.I video
-.RI [ video ...]
+.RI [ video | carpeta ...]
 .br
 .B practicar dudas
 .SH DESCRIPCIÓN
@@ -159,11 +158,14 @@ línea. En White Collar 1x01 quedó así el 75 % de las líneas; para esas, \fBr
 empieza 0.5 s antes en lugar de 0.9 s y termina 0.4 s después, y las demás
 (canciones, frases muy cortas o que Whisper oyó distinto) conservan los márgenes
 amplios. Conviene correrlo cuando no se use la computadora, por ejemplo
-\fBpracticar \-\-preparar ~/Videos/serie/*.mp4\fR; los episodios ya preparados se
+\fBpracticar \-\-preparar ~/Videos/serie\fR; los episodios ya preparados se
 saltan. Al abrir un episodio preparado no se usa CPU extra.
 \fBpracticar \-\-estado\fR \fIvideo\fR... dice de cada episodio si ya está
 preparado (y qué porcentaje de líneas quedó con el tiempo exacto), solo
-sincronizado o sin preparar, sin procesar nada.
+sincronizado o sin preparar, sin procesar nada; sin argumentos, los de la
+carpeta actual. En los dos, una carpeta se cambia por sus videos, y los archivos
+que no son video (\fI.srt\fR, \fItt...\fR) se saltan, así que
+\fBpracticar \-\-estado *\fR también sirve.
 El texto se quita al reanudar la reproducción. \fBpracticar dudas\fR lista
 las dudas guardadas. Las teclas r, R, t y d reemplazan, solo en esta sesión,
 las de mpv para mover los subtítulos y desentrelazar.

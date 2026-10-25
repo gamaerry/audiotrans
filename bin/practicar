@@ -7,12 +7,13 @@ mpv_dir="$(dirname "$(readlink -f "$0")")/../mpv"
 export AUDIOTRANS_DATOS="${AUDIOTRANS_DATOS:-$HOME/.local/share/audiotrans}"
 python="$AUDIOTRANS_DATOS/venv/bin/python"
 cache="$HOME/.cache/audiotrans/sincronizados"
+extensiones_video='mp4|mkv|webm|avi|mov|m4v|mpg|mpeg|ts|wmv|flv|ogv'
 
 ayuda() {
     cat <<'EOF'
 Uso: practicar <video> [subtítulos.srt] [-<destino>]
-     practicar --preparar <video> [<video> ...]
-     practicar --estado <video> [<video> ...]
+     practicar --preparar <video o carpeta> [...]
+     practicar --estado [<video o carpeta> ...]
      practicar dudas
 
 Abre el video en mpv con los subtítulos ocultos. Cuando no entiendas algo:
@@ -42,9 +43,10 @@ se abre un episodio, los subtítulos se sincronizan con el audio por tramos
 --preparar ubica además cada línea en el audio palabra por palabra con
 Whisper (~8 min de CPU por episodio, con prioridad baja), para que r
 repita con el tiempo exacto. Conviene hacerlo antes, cuando no uses la
-computadora, p. ej.: practicar --preparar ~/Videos/white-collar/*.mp4
+computadora, p. ej.: practicar --preparar ~/Videos/white-collar
 Todo se guarda en ~/.cache/audiotrans/sincronizados/. --estado dice qué
-episodios ya están preparados, p. ej.: practicar --estado ~/Videos/white-collar/*.mp4
+episodios ya están preparados (sin argumentos, los de la carpeta actual).
+Con una carpeta se toman sus videos, y los archivos que no son video se saltan.
 
 La traducción va al idioma de la carpeta; para otro, p. ej. -fr. "practicar dudas"
 lista las dudas guardadas (en ~/.local/share/audiotrans/dudas/).
@@ -114,9 +116,26 @@ descargar_srt() {
     fi
 }
 
+videos() {
+    # Deja en lista los videos de los argumentos: una carpeta se cambia por sus videos y los
+    # archivos que no son video (.srt, tt...) se saltan; lo que no existe se deja para avisar
+    local arg
+    lista=()
+    for arg in "$@"; do
+        if [[ -d "$arg" ]]; then
+            # Sin argumentos llega ".": se quita el "./" para que los nombres salgan limpios
+            mapfile -t -O "${#lista[@]}" lista < <(find "${arg%/}" -maxdepth 1 -type f -regextype posix-extended \
+                -iregex ".*\.($extensiones_video)" | sed 's|^\./||' | sort)
+        elif [[ ! -e "$arg" ]] || [[ "${arg,,}" =~ \.($extensiones_video)$ ]]; then
+            lista+=("$arg")
+        fi
+    done
+}
+
 preparar() {
-    local video srt base inicio
-    for video in "$@"; do
+    local video srt base inicio lista
+    videos "$@"
+    for video in "${lista[@]}"; do
         srt="${video%.*}.srt"
         echo "== $(basename "$video")"
         [[ -f "$video" ]] || { echo "  no encuentro el video" >&2; continue; }
@@ -140,8 +159,9 @@ preparar() {
 
 estado() {
     # Una línea por video: preparado (con el % de líneas ubicadas), solo sincronizado o nada
-    local video srt base listos=0
-    for video in "$@"; do
+    local video srt base listos=0 lista
+    videos "${@:-.}"
+    for video in "${lista[@]}"; do
         srt="${video%.*}.srt"
         if [[ ! -f "$video" ]]; then
             printf '%-14s %s\n' "no existe" "$video"
@@ -164,14 +184,14 @@ print(f"{round(100 * exactas / max(len(lineas), 1))} % de las líneas exactas")'
             printf '%-14s %s\n' "sin preparar" "$video"
         fi
     done
-    echo "$listos de $# preparados"
+    echo "$listos de ${#lista[@]} preparados"
 }
 
 video="" srt="" destino="" sincronizar=true
 case "${1:-}" in
     dudas) exec "$python" "$lib/dudas.py" listar ;;
     --preparar) shift; [[ $# -gt 0 ]] || { ayuda >&2; exit 2; }; preparar "$@"; exit 0 ;;
-    --estado) shift; [[ $# -gt 0 ]] || { ayuda >&2; exit 2; }; estado "$@"; exit 0 ;;
+    --estado) shift; estado "$@"; exit 0 ;;
 esac
 for arg in "$@"; do
     case "$arg" in
