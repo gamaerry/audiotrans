@@ -42,7 +42,7 @@ He didn't say a word, but his eyes told me everything.
 
 Usa el `.srt` con el mismo nombre que el video. Muchos `.mkv` traen los subtítulos dentro y se extraen con `ffmpeg -i video.mkv -map 0:s:0 video.srt`. La primera vez que abres un episodio, los subtítulos se **sincronizan con el audio por tramos** (~15 s, se guarda en caché): si el `.srt` es de otra versión del video, cada parte del episodio se corrige por separado. `practicar dudas` lista lo guardado.
 
-Para que `r` repita con el tiempo exacto, prepara los episodios con anticipación, cuando no uses la computadora: `practicar --preparar ~/Videos/serie/*.mp4`. Whisper ubica cada línea palabra por palabra (~8 min por episodio, con prioridad baja). Al verlos ya no se usa CPU extra.
+Para que `r` repita con el tiempo exacto, prepara los episodios con anticipación, cuando no uses la computadora: `practicar --preparar ~/Videos/serie/*.mp4`. Whisper ubica cada línea palabra por palabra (~8 min por episodio, con prioridad baja). Al verlos ya no se usa CPU extra. `practicar --estado ~/Videos/serie/*.mp4` dice cuáles ya están preparados.
 
 Opciones de los comandos de audio (`audiotrans`):
 

@@ -12,6 +12,7 @@ ayuda() {
     cat <<'EOF'
 Uso: practicar <video> [subtítulos.srt] [-<destino>]
      practicar --preparar <video> [<video> ...]
+     practicar --estado <video> [<video> ...]
      practicar dudas
 
 Abre el video en mpv con los subtítulos ocultos. Cuando no entiendas algo:
@@ -31,7 +32,8 @@ se abre un episodio, los subtítulos se sincronizan con el audio por tramos
 Whisper (~8 min de CPU por episodio, con prioridad baja), para que r
 repita con el tiempo exacto. Conviene hacerlo antes, cuando no uses la
 computadora, p. ej.: practicar --preparar ~/Videos/white-collar/*.mp4
-Todo se guarda en ~/.cache/audiotrans/sincronizados/.
+Todo se guarda en ~/.cache/audiotrans/sincronizados/. --estado dice qué
+episodios ya están preparados, p. ej.: practicar --estado ~/Videos/white-collar/*.mp4
 
 La traducción va al español; para otro idioma, p. ej. -fr. "practicar dudas"
 lista las dudas guardadas (en ~/.local/share/audiotrans/dudas/).
@@ -84,10 +86,40 @@ preparar() {
     done
 }
 
+estado() {
+    # Una línea por video: preparado (con el % de líneas ubicadas), solo sincronizado o nada
+    local video srt base listos=0
+    for video in "$@"; do
+        srt="${video%.*}.srt"
+        if [[ ! -f "$video" ]]; then
+            printf '%-14s %s\n' "no existe" "$video"
+            continue
+        elif [[ ! -f "$srt" ]]; then
+            printf '%-14s %s\n' "sin .srt" "$video"
+            continue
+        fi
+        base="$(base_de "$video" "$srt")"
+        if [[ -f "$base.json" ]]; then
+            listos=$((listos + 1))
+            printf '%-14s %s (%s)\n' "preparado" "$video" "$("$python" -c '
+import json, sys
+lineas = json.load(open(sys.argv[1]))["lineas"]
+exactas = sum(l["inicio_exacto"] and l["fin_exacto"] for l in lineas)
+print(f"{round(100 * exactas / max(len(lineas), 1))} % de las líneas exactas")' "$base.json")"
+        elif [[ -f "$base.srt" ]]; then
+            printf '%-14s %s\n' "sincronizado" "$video"
+        else
+            printf '%-14s %s\n' "sin preparar" "$video"
+        fi
+    done
+    echo "$listos de $# preparados"
+}
+
 video="" srt="" destino="es" sincronizar=true
 case "${1:-}" in
     dudas) exec "$python" "$lib/dudas.py" listar ;;
     --preparar) shift; [[ $# -gt 0 ]] || { ayuda >&2; exit 2; }; preparar "$@"; exit 0 ;;
+    --estado) shift; [[ $# -gt 0 ]] || { ayuda >&2; exit 2; }; estado "$@"; exit 0 ;;
 esac
 for arg in "$@"; do
     case "$arg" in

@@ -46,6 +46,10 @@ audiotrans, textrans, practicar, es, en, cbes, cben, pses, psen, mes, men, ses, 
 .I video
 .RI [ video ...]
 .br
+.B practicar \-\-estado
+.I video
+.RI [ video ...]
+.br
 .B practicar dudas
 .SH DESCRIPCIÓN
 .B audiotrans
@@ -142,6 +146,9 @@ empieza 0.5 s antes en lugar de 0.9 s y termina 0.4 s después, y las demás
 amplios. Conviene correrlo cuando no se use la computadora, por ejemplo
 \fBpracticar \-\-preparar ~/Videos/serie/*.mp4\fR; los episodios ya preparados se
 saltan. Al abrir un episodio preparado no se usa CPU extra.
+\fBpracticar \-\-estado\fR \fIvideo\fR... dice de cada episodio si ya está
+preparado (y qué porcentaje de líneas quedó con el tiempo exacto), solo
+sincronizado o sin preparar, sin procesar nada.
 El texto se quita al reanudar la reproducción. \fBpracticar dudas\fR lista
 las dudas guardadas. Las teclas r, R, t y d reemplazan, solo en esta sesión,
 las de mpv para mover los subtítulos y desentrelazar.
