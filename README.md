@@ -28,6 +28,20 @@ He didn't say a word, but his eyes told me everything.
 | `ses` / `sen` | lo mismo con el audio de la computadora |
 | `esp` / `eng` | salida completa de `trans` (diccionario, sinónimos) |
 
+### Practicar listening con series
+
+`practicar episodio.mp4` abre el video en mpv con los subtítulos **ocultos**. Cuando no entiendes algo, lo consultas línea por línea sin salir del video. El orden está pensado para que primero vuelvas a escuchar, luego leas en inglés y al final traduzcas:
+
+| Tecla | |
+|---|---|
+| `r` | repite la línea que acaba de pasar y pausa al terminarla |
+| `R` | pasa a la línea anterior |
+| `t` | muestra el texto original |
+| `y` | muestra la traducción |
+| `d` | guarda la duda: texto, traducción y fragmento de audio |
+
+Usa el `.srt` con el mismo nombre que el video. Muchos `.mkv` traen los subtítulos dentro y se extraen con `ffmpeg -i video.mkv -map 0:s:0 video.srt`. Si van desfasados, `z`/`x` los ajustan. `practicar dudas` lista lo guardado.
+
 Opciones de los comandos de audio (`audiotrans`):
 
 | Opción | |
@@ -44,7 +58,7 @@ Opciones de los comandos de audio (`audiotrans`):
 
 ## Instalación
 
-Requiere Linux con PipeWire, [uv](https://docs.astral.sh/uv/) y unos 1.5 GB de disco: venv, Whisper `small` y los dos traductores. `trans` ([translate-shell](https://github.com/soimort/translate-shell)) y `wl-paste` son opcionales.
+Requiere Linux con PipeWire, [uv](https://docs.astral.sh/uv/) y unos 1.5 GB de disco: venv, Whisper `small` y los dos traductores. `trans` ([translate-shell](https://github.com/soimort/translate-shell)) y `wl-paste` son opcionales; `practicar` necesita [mpv](https://mpv.io/) y `ffmpeg`.
 
 ```bash
 git clone https://github.com/gamaerry/audiotrans.git
@@ -137,6 +151,9 @@ Whisper acepta el texto anterior como pista (`<|startofprev|>`). Eso le da el te
 ```
 bin/audiotrans      graba (micrófono o sistema) y coordina todo
 bin/textrans        traduce texto
+bin/practicar       abre un video en mpv para practicar listening
+mpv/audiotrans.lua  teclas r/R/t/y/d dentro de mpv
+lib/dudas.py        guarda las dudas con su fragmento de audio
 lib/whisper_corto.py   Whisper con ventana ajustada (descubrimientos 1 y 2)
 lib/tiempo_real.py     modo -r: contexto entre frases y traducción en paralelo
 lib/frases.py          corta el audio continuo en frases con el VAD

@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Abre un video en mpv para practicar listening: subtítulos ocultos y consulta línea por línea.
+set -euo pipefail
+
+lib="$(dirname "$(readlink -f "$0")")/../lib"
+mpv_dir="$(dirname "$(readlink -f "$0")")/../mpv"
+export AUDIOTRANS_DATOS="${AUDIOTRANS_DATOS:-$HOME/.local/share/audiotrans}"
+python="$AUDIOTRANS_DATOS/venv/bin/python"
+
+ayuda() {
+    cat <<'EOF'
+Uso: practicar <video> [subtítulos.srt] [-<destino>]
+     practicar dudas
+
+Abre el video en mpv con los subtítulos ocultos. Cuando no entiendas algo:
+  r  repetir la línea que acaba de pasar (se pausa al terminarla)
+  R  ir a la línea anterior
+  t  mostrar el texto original de esa línea
+  y  mostrar la traducción
+  d  guardar la línea como duda, con su audio
+  v  mostrar u ocultar todos los subtítulos (tecla normal de mpv)
+  z / x  adelantar o atrasar los subtítulos 0.1 s si van desfasados
+
+Sin .srt se usa el que tenga el mismo nombre que el video. La traducción va
+al español; para otro idioma, p. ej. -fr. "practicar dudas" lista las dudas
+guardadas (en ~/.local/share/audiotrans/dudas/).
+EOF
+}
+
+video="" srt="" destino="es"
+for arg in "$@"; do
+    case "$arg" in
+        -h|--help) ayuda; exit 0 ;;
+        -[a-z][a-z]|-[a-z][a-z][a-z]) destino="${arg#-}" ;;
+        *.srt) srt="$arg" ;;
+        *) video="$arg" ;;
+    esac
+done
+
+if [[ "$video" == "dudas" ]]; then
+    exec "$python" "$lib/dudas.py" listar
+fi
+[[ -n "$video" ]] || { ayuda >&2; exit 2; }
+[[ -f "$video" ]] || { echo "practicar: no encuentro el video: $video" >&2; exit 2; }
+srt="${srt:-${video%.*}.srt}"
+[[ -f "$srt" ]] || { echo "practicar: no encuentro los subtítulos: $srt" >&2; exit 2; }
+
+# Las comas separan opciones en script-opts, así que las rutas no deben tenerlas
+for ruta in "$srt" "$lib" "$python"; do
+    [[ "$ruta" != *,* ]] || { echo "practicar: la ruta no puede tener comas: $ruta" >&2; exit 2; }
+done
+
+exec mpv --sub-file="$srt" --sub-visibility=no \
+    --script="$mpv_dir/audiotrans.lua" \
+    --script-opts="audiotrans-srt=$(readlink -f "$srt"),audiotrans-python=$python,audiotrans-lib=$(readlink -f "$lib"),audiotrans-textrans=$(readlink -f "$lib/../bin/textrans"),audiotrans-destino=$destino" \
+    "$video"

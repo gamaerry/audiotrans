@@ -1,6 +1,6 @@
 .TH AUDIOTRANS 1 "octubre 2026" "audiotrans" "Comandos de usuario"
 .SH NOMBRE
-audiotrans, textrans, es, en, cbes, cben, pses, psen, mes, men, ses, sen \- traducir texto o lo que se escucha en el micrófono o en la computadora
+audiotrans, textrans, practicar, es, en, cbes, cben, pses, psen, mes, men, ses, sen \- traducir texto o lo que se escucha en el micrófono o en la computadora, y practicar listening con series
 .SH SINOPSIS
 .B audiotrans
 .RB [ \-s ]
@@ -34,6 +34,13 @@ audiotrans, textrans, es, en, cbes, cben, pses, psen, mes, men, ses, sen \- trad
 .RB [ \-g ]
 .RB [ \-\fIorigen\fR ]
 .RI [ texto ...]
+.br
+.B practicar
+.I video
+.RI [ subtítulos.srt ]
+.RB [ \-\fIdestino\fR ]
+.br
+.B practicar dudas
 .SH DESCRIPCIÓN
 .B audiotrans
 graba audio hasta que se presiona Enter, lo transcribe con Whisper
@@ -74,6 +81,40 @@ y acentos (ñ, ¿, ¡), y solo decide si un idioma le gana al otro por al menos
 dos palabras. Si no está claro (textos de una o dos palabras, u otros idiomas),
 usa Google; si además no hay conexión, supone que el texto está en el otro
 idioma del par inglés\-español y usa el modelo local.
+.SS practicar
+.B practicar
+abre el
+.I video
+en mpv con los subtítulos ocultos, para practicar listening sin leerlos, y
+permite consultarlos línea por línea cuando no se entiende algo. Las teclas
+están pensadas para escuchar de nuevo antes de leer y leer antes de traducir:
+.TP
+.B r
+Regresa al inicio de la línea que acaba de pasar, la reproduce y pausa al
+terminarla. Si la línea apenas empezó (menos de 0.7 s), usa la anterior.
+Presionarla otra vez repite la misma línea.
+.TP
+.B R
+Pasa a la línea anterior.
+.TP
+.B t
+Pausa y muestra el texto original de la línea.
+.TP
+.B y
+Pausa y muestra además la traducción (con \fBtextrans\fR).
+.TP
+.B d
+Guarda la línea como duda: el texto, la traducción y el fragmento de audio
+(con 0.3 s de margen) en \fI~/.local/share/audiotrans/dudas/\fR.
+.TP
+.BR v ", " z ", " x
+Teclas normales de mpv: mostrar todos los subtítulos, y adelantarlos o
+atrasarlos 0.1 s si el \fI.srt\fR va desfasado (r, t, y y d lo toman en cuenta).
+.PP
+Sin \fIsubtítulos.srt\fR usa el archivo con el mismo nombre que el video.
+El texto se quita al reanudar la reproducción. \fBpracticar dudas\fR lista
+las dudas guardadas. Las teclas r, R, t y d reemplazan, solo en esta sesión,
+las de mpv para mover los subtítulos, desentrelazar y fijar la ventana encima.
 .SH OPCIONES
 .TP
 .BI \- origen
@@ -190,6 +231,10 @@ Enlaces a los comandos en \fIbin/\fR del repositorio, que los instala
 \fItranscribir.py\fR para una sola grabación, \fItiempo_real.py\fR para
 \fB\-r\fR, \fIwhisper_corto.py\fR con la ventana ajustada, \fItexto.py\fR para
 \fBtextrans\fR y \fItraduccion.py\fR, que decide entre el modelo local y Google.
+.TP
+.I ~/.local/share/audiotrans/dudas/
+Dudas de \fBpracticar\fR: \fIdudas.jsonl\fR (una por línea: episodio, tiempos,
+texto, traducción, fecha) y \fIaudio/\fR con un mp3 por duda.
 .TP
 .I ~/.local/share/audiotrans/venv/
 Entorno de Python 3.12 con faster\-whisper, CTranslate2 y SentencePiece.

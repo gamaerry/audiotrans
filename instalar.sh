@@ -11,8 +11,9 @@ man1="$HOME/.local/share/man/man1"
 for c in uv pw-record pactl; do
     command -v "$c" >/dev/null || { echo "Falta $c (uv: https://docs.astral.sh/uv/; pw-record y pactl: PipeWire)" >&2; exit 1; }
 done
-for c in trans wl-paste; do
-    command -v "$c" >/dev/null || echo "Aviso: no está $c (opcional: $([[ $c == trans ]] && echo 'esp/eng y respaldo de Google' || echo 'cbes/cben/pses/psen'))"
+declare -A opcional=([trans]="esp/eng y respaldo de Google" [wl-paste]="cbes/cben/pses/psen" [mpv]="practicar" [ffmpeg]="practicar")
+for c in "${!opcional[@]}"; do
+    command -v "$c" >/dev/null || echo "Aviso: no está $c (opcional, para ${opcional[$c]})"
 done
 
 echo "== Entorno de Python en $datos/venv"
@@ -45,8 +46,9 @@ echo "== Comandos y manual"
 mkdir -p "$bin" "$man1"
 ln -sfn "$repo/bin/audiotrans" "$bin/audiotrans"
 ln -sfn "$repo/bin/textrans" "$bin/textrans"
+ln -sfn "$repo/bin/practicar" "$bin/practicar"
 ln -sfn "$repo/man/audiotrans.1" "$man1/audiotrans.1"
-for a in textrans es en cbes cben pses psen mes men ses sen; do
+for a in textrans practicar es en cbes cben pses psen mes men ses sen; do
     echo ".so man1/audiotrans.1" > "$man1/$a.1"
 done
 
