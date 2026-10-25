@@ -93,10 +93,15 @@ están pensadas para escuchar de nuevo antes de leer y leer antes de traducir:
 .B r
 Regresa al inicio de la línea que acaba de pasar, la reproduce y pausa al
 terminarla. Si la línea apenas empezó (menos de 0.7 s), usa la anterior.
-Presionarla otra vez repite la misma línea.
+Presionarla otra vez repite la misma línea. Empieza 0.9 s antes y termina
+0.5 s después de lo que marca el \fI.srt\fR, porque cada línea tiene su propio
+error de tiempo aun sincronizada (medido: 0.9 s cubre el 95 % de las líneas,
+0.3 s solo el 84 %); a veces se oye el final de la frase anterior.
 .TP
 .B R
-Pasa a la línea anterior.
+Repite la misma línea a 0.75× (mpv conserva el tono de voz) y regresa a la
+velocidad normal al terminarla. Sirve cuando hablan rápido o las palabras se
+pegan.
 .TP
 .B t
 Pausa y muestra el texto original de la línea.
@@ -106,7 +111,7 @@ Pausa y muestra además la traducción (con \fBtextrans\fR).
 .TP
 .B d
 Guarda la línea como duda: el texto, la traducción y el fragmento de audio
-(con 0.3 s de margen) en \fI~/.local/share/audiotrans/dudas/\fR.
+(con los mismos márgenes que \fBr\fR) en \fI~/.local/share/audiotrans/dudas/\fR.
 .TP
 .BR v ", " z ", " x
 Teclas normales de mpv: mostrar todos los subtítulos, y adelantarlos o
@@ -124,7 +129,7 @@ resultado queda en \fI~/.cache/audiotrans/sincronizados/\fR y el \fI.srt\fR
 original no se modifica. Con \fB\-\-sin\-sincronizar\fR se usa tal cual.
 El texto se quita al reanudar la reproducción. \fBpracticar dudas\fR lista
 las dudas guardadas. Las teclas r, R, t y d reemplazan, solo en esta sesión,
-las de mpv para mover los subtítulos, desentrelazar y fijar la ventana encima.
+las de mpv para mover los subtítulos y desentrelazar.
 .SH OPCIONES
 .TP
 .BI \- origen

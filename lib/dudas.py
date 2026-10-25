@@ -15,7 +15,10 @@ from traduccion import DATOS, traducir
 
 CARPETA = os.path.join(DATOS, "dudas")
 REGISTRO = os.path.join(CARPETA, "dudas.jsonl")
-MARGEN = 0.3  # s de audio antes y después de la línea, para no cortar palabras
+# s de audio antes y después de la línea, los mismos que usa r en mpv/audiotrans.lua: el
+# .srt tiene errores por línea y empezar 0.9 s antes cubre el 95 % (medido con Whisper)
+MARGEN_INICIO = 0.9
+MARGEN_FIN = 0.5
 
 
 def guardar(video, inicio, fin, texto, origen, destino):
@@ -25,8 +28,8 @@ def guardar(video, inicio, fin, texto, origen, destino):
     os.makedirs(os.path.join(CARPETA, "audio"), exist_ok=True)
     audio = os.path.join("audio", f"{ident}.mp3")
     subprocess.run(
-        ["ffmpeg", "-v", "error", "-y", "-ss", f"{max(0, inicio - MARGEN):.3f}", "-i", video,
-         "-t", f"{fin - inicio + 2 * MARGEN:.3f}", "-vn", "-ac", "1", "-c:a", "libmp3lame", "-q:a", "4",
+        ["ffmpeg", "-v", "error", "-y", "-ss", f"{max(0, inicio - MARGEN_INICIO):.3f}", "-i", video,
+         "-t", f"{fin - inicio + MARGEN_INICIO + MARGEN_FIN:.3f}", "-vn", "-ac", "1", "-c:a", "libmp3lame", "-q:a", "4",
          os.path.join(CARPETA, audio)],
         check=True,
     )

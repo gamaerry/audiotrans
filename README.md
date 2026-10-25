@@ -35,7 +35,7 @@ He didn't say a word, but his eyes told me everything.
 | Tecla | |
 |---|---|
 | `r` | repite la línea que acaba de pasar y pausa al terminarla |
-| `R` | pasa a la línea anterior |
+| `R` | la repite más lento (0.75×) |
 | `t` | muestra el texto original |
 | `y` | muestra la traducción |
 | `d` | guarda la duda: texto, traducción y fragmento de audio |
@@ -146,6 +146,8 @@ Los `.srt` descargados suelen ser de otra versión del video. En White Collar 1x
 | `.srt` original | −1.17 a −1.39 s |
 | [ffsubsync](https://github.com/smacke/ffsubsync) (un solo desplazamiento) | −0.09 a −0.33 s |
 | **por tramos** | **−0.15 a +0.07 s** |
+
+Aun sincronizado, cada línea tiene su propio error de tiempo, porque quien hace los subtítulos no los ajusta al milisegundo. Por eso `r` empieza 0.9 s antes y termina 0.5 s después: con el inicio de cada palabra medido en 120 líneas, 0.9 s cubre el 95 % de los inicios (0.3 s solo el 84 %), y 0.5 s el 100 % de los finales. Ajustar cada inicio a donde el VAD detecta voz lo empeoró (de 14 % a 17–24 % de líneas que empezaban tarde), porque con música y efectos el VAD no es preciso al décimo de segundo.
 
 Una lección: medir con el inicio de los segmentos de Whisper, en lugar de por palabra, sugirió que el desfase cambiaba hacia el final, cuando en realidad era constante.
 

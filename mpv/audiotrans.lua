@@ -1,6 +1,6 @@
 -- Práctica de listening en mpv: los subtítulos van ocultos y se consultan línea por línea.
 --   r  repetir la línea que acaba de pasar (y pausar al terminarla)
---   R  ir a la línea anterior
+--   R  repetirla más lento (0.75×)
 --   t  mostrar el texto original de la línea
 --   y  mostrar la traducción
 --   d  guardar la línea como duda, con su audio (para repasar en Anki)
@@ -13,9 +13,17 @@ local options = require "mp.options"
 local opts = { srt = "", python = "", lib = "", textrans = "", destino = "es", origen = "en" }
 options.read_options(opts, "audiotrans")
 
+-- Cada línea del .srt tiene su propio error de tiempo, aunque esté sincronizada. Medido con
+-- Whisper por palabra en White Collar 1x01: empezar 0.9 s antes cubre el 95 % de las líneas
+-- (0.3 s solo el 84 %), y terminar 0.5 s después, el 100 %
+local MARGEN_INICIO = 0.9
+local MARGEN_FIN = 0.5
+local LENTO = 0.75
+
 local lineas = {}        -- { inicio = s, fin = s, texto = "..." } en el tiempo del .srt
 local foco = nil         -- índice de la línea con la que se está trabajando
 local pausar_en = nil    -- tiempo (del video) en el que pausar al terminar una repetición
+local velocidad = nil    -- velocidad de antes de una repetición lenta, para restaurarla
 local overlay = mp.create_osd_overlay("ass-events")
 local mostrado = {}      -- lo que se ve en pantalla: { original = ..., traduccion = ... }
 
@@ -89,20 +97,33 @@ local function ocultar()
     overlay:remove()
 end
 
-local function repetir(i)
-    if not i then return mp.osd_message("No hay una línea anterior") end
+local function terminar_repeticion()
+    pausar_en = nil
+    if velocidad then
+        mp.set_property_number("speed", velocidad)
+        velocidad = nil
+    end
+end
+
+local function repetir(i, lento)
+    if not i then return mp.osd_message("Todavía no hay diálogo") end
+    terminar_repeticion()
     foco = i
     ocultar()
     local l = lineas[i]
-    pausar_en = l.fin + retraso() + 0.3
-    mp.commandv("seek", tostring(math.max(0, l.inicio + retraso() - 0.3)), "absolute+exact")
+    if lento then
+        velocidad = mp.get_property_number("speed", 1)
+        mp.set_property_number("speed", LENTO)
+    end
+    pausar_en = l.fin + retraso() + MARGEN_FIN
+    mp.commandv("seek", tostring(math.max(0, l.inicio + retraso() - MARGEN_INICIO)), "absolute+exact")
     mp.set_property_bool("pause", false)
 end
 
 mp.observe_property("time-pos", "number", function(_, t)
     if not t then return end
     if pausar_en and t >= pausar_en then
-        pausar_en = nil
+        terminar_repeticion()
         mp.set_property_bool("pause", true)
     elseif not pausar_en and foco and t - retraso() > lineas[foco].fin + 1.5 then
         foco = nil  -- la reproducción siguió: la siguiente duda será sobre otra línea
@@ -116,7 +137,7 @@ end)
 local function mostrar_texto()
     local i = linea_en_foco()
     if not i then return mp.osd_message("Todavía no hay diálogo") end
-    pausar_en = nil
+    terminar_repeticion()
     mp.set_property_bool("pause", true)
     mostrado.original = lineas[i].texto
     dibujar()
@@ -125,7 +146,7 @@ end
 local function mostrar_traduccion()
     local i = linea_en_foco()
     if not i then return mp.osd_message("Todavía no hay diálogo") end
-    pausar_en = nil
+    terminar_repeticion()
     mp.set_property_bool("pause", true)
     mostrado.original = lineas[i].texto
     mostrado.traduccion = "…"
@@ -160,15 +181,12 @@ end
 
 if opts.srt ~= "" and cargar_srt(opts.srt) then
     mp.add_forced_key_binding("r", "audiotrans-repetir", function() repetir(foco or linea_reciente()) end)
-    mp.add_forced_key_binding("R", "audiotrans-anterior", function()
-        local i = foco or linea_reciente()
-        repetir(i and i > 1 and i - 1 or nil)
-    end)
+    mp.add_forced_key_binding("R", "audiotrans-lento", function() repetir(foco or linea_reciente(), true) end)
     mp.add_forced_key_binding("t", "audiotrans-texto", mostrar_texto)
     mp.add_forced_key_binding("y", "audiotrans-traduccion", mostrar_traduccion)
     mp.add_forced_key_binding("d", "audiotrans-duda", guardar_duda)
     mp.register_event("file-loaded", function()
-        mp.osd_message(#lineas .. " líneas · r repetir · R anterior · t texto · y traducción · d guardar duda", 6)
+        mp.osd_message(#lineas .. " líneas · r repetir · R más lento · t texto · y traducción · d guardar duda", 6)
     end)
 else
     mp.msg.warn("audiotrans: no se pudo leer el .srt: " .. opts.srt)
