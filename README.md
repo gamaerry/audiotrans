@@ -187,6 +187,8 @@ Para que tarde menos medí cuatro configuraciones en 1x01, intercaladas en 3 ron
 
 Con beam 1 los finales casi no cambian, pero el 11 % de los inicios se movieron más de 0.2 s, hacia los dos lados. Como árbitro, Whisper `medium` transcribió solo esas líneas: quedó más cerca de beam 1 en 55 y de beam 5 en 31 (error mediano 0.23 s contra 0.39 s). Más hilos no ayudan en el i3-N305, y `distil-small.en` pierde 12 puntos de líneas exactas y solo sirve para inglés.
 
+También probé afinar los bordes con alineación forzada CTC (wav2vec2-base-960h en ONNX): Whisper ubica cada línea y wav2vec2 busca sus letras a ±0.5 s. Contra los bordes de voz de Silero VAD (que coinciden con la energía del audio, mediana 0.01 s), el inicio pasó de 0.32 a 0.07 s de error mediano: Whisper pone los inicios ~0.3 s antes. Pero se adelanta hacia el lado seguro, así que con el margen de 0.5 s al repetir solo se ahorraría ~0.2 s de la línea anterior. Los fines quedaron casi igual (0.19 contra 0.16 s). No lo usé porque las emisiones de 1x01 tardaron 672 s, que se suman a los de Whisper, porque el modelo solo sirve para inglés y porque la versión int8 transcribe con muchos errores.
+
 Una lección: medir con el inicio de los segmentos de Whisper, en lugar de por palabra, sugirió que el desfase cambiaba hacia el final, cuando en realidad era constante.
 
 ### 7. Modelos descartados
