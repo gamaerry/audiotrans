@@ -149,8 +149,15 @@ mp.observe_property("time-pos", "number", function(_, t)
     if pausar_en and t >= pausar_en then
         terminar_repeticion()
         mp.set_property_bool("pause", true)
-    elseif not pausar_en and foco and t - retraso() > lineas[foco].fin + 1.5 then
-        foco = nil  -- la reproducción siguió: la siguiente duda será sobre otra línea
+    elseif not pausar_en and foco then
+        -- Se suelta en cuanto el tiempo sale del tramo que repite r y ya apunta a otra línea
+        -- (la reproducción siguió o se regresó). Soltarla 1.5 s después del final saltaba
+        -- líneas cortas como "Coffee?" y, al regresar, se quedaba con la línea de antes
+        local l, actual = lineas[foco], t - retraso()
+        local antes, despues = margenes(l)
+        if (actual < l.inicio - antes or actual > l.fin + despues) and linea_reciente() ~= foco then
+            foco = nil
+        end
     end
 end)
 
