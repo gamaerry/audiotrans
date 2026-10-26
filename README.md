@@ -76,7 +76,7 @@ audiotrans --setup
 
 [uv](https://docs.astral.sh/uv/) instala los comandos `audiotrans`, `textrans` y `practice` en `~/.local/bin`, con su propio Python 3.12 (faster-whisper no tiene paquetes para 3.13 o posterior). `audiotrans --setup` descarga los dos traductores locales (~580 MB, que quedan en 164 MB) y los convierte a CTranslate2 en int8, instala el manual en `~/.local/share/man` y dice qué línea agregar a `~/.bashrc` para los alias. Sin `--setup` todo funciona, pero la traducción va a Google (y lo avisa). Whisper `small` (~460 MB) se descarga la primera vez que se usa; en total son unos 1.2 GB de disco (`base`, con `-f`, unos 140 MB más).
 
-Para trabajar en el código, `./instalar.sh` desde el repo hace lo mismo con una instalación editable: lo que cambies se usa al instante.
+Para trabajar en el código, `./instalar.sh` desde el repo hace lo mismo con una instalación editable: lo que cambies se usa al instante. `uv run --extra pruebas pytest` corre las pruebas, que también corren en GitHub Actions.
 
 ## Descubrimientos
 
@@ -214,7 +214,7 @@ audiotrans/
   transcribir.py     modo con Enter
   man/audiotrans.1   manual
   alias.sh           los alias
-pruebas/             medición de precisión con voz real (Mini LibriSpeech)
+pruebas/             pruebas automáticas (test_*.py) y medición de precisión con voz real
 pyproject.toml       paquete y dependencias
 instalar.sh          instalación editable desde el repo
 ```

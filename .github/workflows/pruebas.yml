@@ -1,0 +1,25 @@
+name: pruebas
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Instalar el paquete (no editable, para que falten los archivos que no se empaqueten)
+        run: |
+          uv venv --python 3.12
+          uv pip install ".[pruebas]"
+      - name: Pruebas
+        # Desde otra carpeta, para importar el paquete instalado y no el del repo
+        run: cd pruebas && ../.venv/bin/python -m pytest -q
+      - name: Sintaxis de bash, del manual y del Lua
+        run: |
+          bash -n audiotrans/sh/audiotrans audiotrans/sh/practice instalar.sh audiotrans/alias.sh
+          sudo apt-get install -y -qq groff luajit >/dev/null
+          test -z "$(groff -k -man -ww -z audiotrans/man/audiotrans.1 2>&1)"
+          luajit -b audiotrans/mpv/audiotrans.lua /dev/null
