@@ -47,4 +47,4 @@ Notas para trabajar en el código. Qué hace la herramienta y por qué está dis
 - **`lib/alinear.py`** busca las 3 primeras y 3 últimas palabras de cada línea a ±3 s (`BUSQUEDA`) y exige al menos 2 coincidencias; si la duración resultante no es razonable, conserva el tiempo del `.srt`. El `.json` marca por separado `inicio_exacto` y `fin_exacto`, y el Lua elige el margen de cada extremo según eso.
 - **`mpv/audiotrans.lua`** recibe las rutas por `--script-opts`, que separa con comas: `practicar` rechaza rutas con comas. Los tiempos del `.srt` se desplazan con `sub-delay`. Lua no trae JSON fácil, por eso guardar una duda va en `lib/dudas.py` (subproceso asíncrono, para no congelar el video).
 - **Ctrl+C en tiempo real** termina con `os._exit(0)`, porque el hilo lector queda bloqueado en stdin y un cierre normal aborta Python.
-- Los parámetros (hilos, ventana mínima de 15 s, pausa de 0.5 s) se midieron en un i3-N305. En otro CPU pueden cambiar.
+- Los parámetros (hilos, ventana mínima de 15 s, pausa de 0.5 s) se midieron en un i3-N305. En otro CPU pueden cambiar. En `alinear.py`, 8 hilos fueron más lentos que 4 (406 s contra 355 s).

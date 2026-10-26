@@ -6,8 +6,8 @@ Aun sincronizado por tramos, cada línea del .srt tiene su propio error (hasta ~
 que practicar usa márgenes amplios al repetir. Aquí se transcribe el episodio entero con
 marcas por palabra y se buscan la primera y la última palabra de cada línea cerca de donde
 dice el .srt. Las líneas que se encuentran quedan con su tiempo exacto; las demás (canciones,
-números, frases que Whisper oyó distinto) conservan el del .srt. Tarda ~8 min por episodio en
-CPU (White Collar 1x01: 7 min 53 s, 75 % de las líneas exactas), por eso se hace con
+números, frases que Whisper oyó distinto) conservan el del .srt. Tarda ~6 min por episodio en
+CPU (White Collar 1x01: 5 min 55 s, 74 % de las líneas exactas), por eso se hace con
 anticipación (practicar --preparar) y no al ver el episodio.
 """
 import json
@@ -44,7 +44,9 @@ def transcribir(video, idioma):
     audio = np.frombuffer(pcm, np.int16).astype(np.float32) / 32768
     modelo = WhisperModel(os.environ.get("AUDIOTRANS_MODEL", "small"), device="cpu", compute_type="int8",
                           cpu_threads=int(os.environ.get("AUDIOTRANS_HILOS", 4)))
-    segmentos, _ = modelo.transcribe(audio, language=idioma, word_timestamps=True,
+    # beam 1: 23 % más rápido que el 5 por defecto, casi las mismas líneas exactas y los
+    # inicios más cerca de los de Whisper medium (ver README, descubrimiento 6)
+    segmentos, _ = modelo.transcribe(audio, language=idioma, word_timestamps=True, beam_size=1,
                                      condition_on_previous_text=False, vad_filter=True)
     total, palabras = len(audio) / 16000, []
     for s in segmentos:

@@ -41,7 +41,7 @@ se abre un episodio, los subtítulos se sincronizan con el audio por tramos
 (~15 s); con --sin-sincronizar se usan tal cual.
 
 --preparar ubica además cada línea en el audio palabra por palabra con
-Whisper (~8 min de CPU por episodio, con prioridad baja), para que r
+Whisper (~6 min de CPU por episodio, con prioridad baja), para que r
 repita con el tiempo exacto. Conviene hacerlo antes, cuando no uses la
 computadora, p. ej.: practicar --preparar ~/Videos/white-collar
 Todo se guarda en ~/.cache/audiotrans/sincronizados/. --estado dice qué
@@ -144,7 +144,7 @@ preparar() {
         base="$(base_de "$video" "$srt")"
         [[ -f "$base.json" ]] && { echo "  ya estaba preparado"; continue; }
         sincronizar "$video" "$srt" "$base" || { echo "  no se pudo sincronizar" >&2; continue; }
-        echo "  ubicando cada línea en el audio con Whisper (~8 min)..."
+        echo "  ubicando cada línea en el audio con Whisper (~6 min)..."
         inicio=$SECONDS
         if nice -n 19 "$python" "$lib/alinear.py" "$video" "$base.srt" "$base.json.tmp" "$base.exacto.srt.tmp" "$original" 2> >(grep --line-buffered -v -i warn >&2); then
             mv "$base.exacto.srt.tmp" "$base.exacto.srt"

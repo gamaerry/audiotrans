@@ -51,7 +51,7 @@ Si el nombre del video tiene temporada y episodio (`s1-e3`, `S01E03`, `1x03`), e
 
 Usa el `.srt` con el mismo nombre que el video. Si no existe, lo baja de [OpenSubtitles](https://www.opensubtitles.com/) en el idioma original: primero busca por el hash del archivo y, si no hay, por el ID de IMDb. Con el ID no se confunden obras con el mismo nombre (buscando "the office" salían mezcladas la británica, la de EE. UU. y la de 2024). En ese caso baja hasta 3 versiones, la más descargada de cada fuente (TV, WEB, DVD), y se queda con la que, ya sincronizada, mejor coincide con la voz (~10 s más). Necesita una clave de API, que se crea en [opensubtitles.com/consumers](https://www.opensubtitles.com/en/consumers) y se guarda como `api_key=<clave>` en `~/.local/share/audiotrans/opensubtitles`; sin iniciar sesión, OpenSubtitles da 100 descargas al día. Muchos `.mkv` traen los subtítulos dentro y se extraen con `ffmpeg -i video.mkv -map 0:s:0 video.srt`. La primera vez que abres un episodio, los subtítulos se **sincronizan con el audio por tramos** (~15 s, se guarda en caché): si el `.srt` es de otra versión del video, cada parte del episodio se corrige por separado. `practicar dudas` lista lo guardado.
 
-Para que `r` repita con el tiempo exacto, prepara los episodios con anticipación, cuando no uses la computadora: `practicar --preparar ~/Videos/serie` (o solo algunos episodios). Whisper ubica cada línea palabra por palabra (~8 min por episodio, con prioridad baja). Al verlos ya no se usa CPU extra. `practicar --estado` dice cuáles de la carpeta actual ya están preparados; también acepta carpetas o videos sueltos, y salta lo que no es video.
+Para que `r` repita con el tiempo exacto, prepara los episodios con anticipación, cuando no uses la computadora: `practicar --preparar ~/Videos/serie` (o solo algunos episodios). Whisper ubica cada línea palabra por palabra (~6 min por episodio, con prioridad baja). Al verlos ya no se usa CPU extra. `practicar --estado` dice cuáles de la carpeta actual ya están preparados; también acepta carpetas o videos sueltos, y salta lo que no es video.
 
 Opciones de los comandos de audio (`audiotrans`):
 
@@ -165,6 +165,17 @@ Por eso, cuando OpenSubtitles no tiene el `.srt` del mismo archivo, se comparan 
 Aun sincronizado, cada línea tiene su propio error de tiempo, porque quien hace los subtítulos no los ajusta al milisegundo. Por eso `r` empieza 0.9 s antes y termina 0.5 s después: con el inicio de cada palabra medido en 120 líneas, 0.9 s cubre el 95 % de los inicios (0.3 s solo el 84 %), y 0.5 s el 100 % de los finales. Ajustar cada inicio a donde el VAD detecta voz lo empeoró (de 14 % a 17–24 % de líneas que empezaban tarde), porque con música y efectos el VAD no es preciso al décimo de segundo.
 
 Con `practicar --preparar`, [`lib/alinear.py`](lib/alinear.py) transcribe el episodio entero con marcas por palabra y ubica la primera y la última palabra de cada línea cerca de donde dice el `.srt`. En 1x01 encontró el 75 % de las líneas, en 7 min 53 s. Las que faltan son canciones, frases muy cortas y frases que Whisper oyó distinto. Contra una medición aparte, 0.5 s de margen cubre el 95 % de esos inicios y 0.4 s el 100 % de los finales, así que esas líneas se repiten casi sin oír la anterior.
+
+Para que tarde menos medí cuatro configuraciones en 1x01, intercaladas en 3 rondas (mediana; la desviación fue de 1–2 s):
+
+| | tiempo | líneas exactas |
+|---|---|---|
+| `small`, beam 5, 4 hilos (antes) | 465 s | 801 (75.0 %) |
+| **`small`, beam 1, 4 hilos** | **355 s** | **795 (74.4 %)** |
+| `small`, beam 1, 8 hilos | 406 s | 795 (74.4 %) |
+| `distil-small.en`, beam 1, 8 hilos | 328 s | ~673 (63 %) |
+
+Con beam 1 los finales casi no cambian, pero el 11 % de los inicios se movieron más de 0.2 s, hacia los dos lados. Como árbitro, Whisper `medium` transcribió solo esas líneas: quedó más cerca de beam 1 en 55 y de beam 5 en 31 (error mediano 0.23 s contra 0.39 s). Más hilos no ayudan en el i3-N305, y `distil-small.en` pierde 12 puntos de líneas exactas y solo sirve para inglés.
 
 Una lección: medir con el inicio de los segmentos de Whisper, en lugar de por palabra, sugirió que el desfase cambiaba hacia el final, cuando en realidad era constante.
 
