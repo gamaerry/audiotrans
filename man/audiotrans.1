@@ -1,6 +1,6 @@
 .TH AUDIOTRANS 1 "octubre 2026" "audiotrans" "Comandos de usuario"
 .SH NOMBRE
-audiotrans, textrans, practicar, es, en, cbes, cben, pses, psen, mes, men, ses, sen \- traducir texto o lo que se escucha en el micrófono o en la computadora, y practicar listening con series
+audiotrans, textrans, practice, es, en, cbes, cben, pses, psen, mes, men, ses, sen \- traducir texto o lo que se escucha en el micrófono o en la computadora, y practicar listening con series
 .SH SINOPSIS
 .B audiotrans
 .RB [ \-s ]
@@ -35,21 +35,21 @@ audiotrans, textrans, practicar, es, en, cbes, cben, pses, psen, mes, men, ses, 
 .RB [ \-\fIorigen\fR ]
 .RI [ texto ...]
 .br
-.B practicar
-.RB [ \-\-sin\-sincronizar ]
+.B practice
+.RB [ \-\-no\-sync ]
 .I video
 .RI [ subtítulos.srt ]
 .RB [ \-\fIdestino\fR ]
 .br
 .br
-.B practicar \-\-preparar
+.B practice \-\-prepare
 .I video\fR|\fIcarpeta
 .RI [ ... ]
 .br
-.B practicar \-\-estado
+.B practice \-\-status
 .RI [ video | carpeta ...]
 .br
-.B practicar dudas
+.B practice saved
 .SH DESCRIPCIÓN
 .B audiotrans
 graba audio hasta que se presiona Enter, lo transcribe con Whisper
@@ -90,8 +90,8 @@ y acentos (ñ, ¿, ¡), y solo decide si un idioma le gana al otro por al menos
 dos palabras. Si no está claro (textos de una o dos palabras, u otros idiomas),
 usa Google; si además no hay conexión, supone que el texto está en el otro
 idioma del par inglés\-español y usa el modelo local.
-.SS practicar
-.B practicar
+.SS practice
+.B practice
 abre el
 .I video
 en mpv con los subtítulos ocultos, para practicar listening sin leerlos, y
@@ -141,7 +141,7 @@ si no existe lo baja de OpenSubtitles en el idioma original
 de IMDb, que es obligatorio para bajarlos. En ese caso baja
 hasta 3 versiones, una por fuente (TV, WEB, DVD), porque las de TV suelen tener
 otros cortes, y se queda con la que mejor coincide con la voz ya sincronizada.
-También con \fB\-\-preparar\fR.
+También con \fB\-\-prepare\fR.
 La primera vez que se abre un episodio, \fIsincronizar.py\fR sincroniza los
 subtítulos con el audio por tramos (~15 s). Detecta dónde hay voz y, en
 ventanas de 5 min cada minuto, busca el desplazamiento que mejor encima los
@@ -149,24 +149,24 @@ subtítulos sobre la voz; cada línea toma el de su zona. Así se corrige tambi�
 un desfase que cambia a lo largo del episodio (por cortes o pausas distintas),
 que \fBz\fR/\fBx\fR no pueden arreglar porque mueven todo por igual. El
 resultado queda en \fI~/.cache/audiotrans/sincronizados/\fR y el \fI.srt\fR
-original no se modifica. Con \fB\-\-sin\-sincronizar\fR se usa tal cual.
+original no se modifica. Con \fB\-\-no\-sync\fR se usa tal cual.
 .PP
-\fBpracticar \-\-preparar\fR \fIvideo\fR... hace además, con anticipación, que
+\fBpractice \-\-prepare\fR \fIvideo\fR... hace además, con anticipación, que
 Whisper transcriba el episodio con marcas por palabra (\fIalinear.py\fR, ~6 min
 por episodio con prioridad baja) y ubique la primera y la última palabra de cada
 línea. En White Collar 1x01 quedó así el 75 % de las líneas; para esas, \fBr\fR
 empieza 0.5 s antes en lugar de 0.9 s y termina 0.4 s después, y las demás
 (canciones, frases muy cortas o que Whisper oyó distinto) conservan los márgenes
 amplios. Conviene correrlo cuando no se use la computadora, por ejemplo
-\fBpracticar \-\-preparar ~/Videos/serie\fR; los episodios ya preparados se
+\fBpractice \-\-prepare ~/Videos/serie\fR; los episodios ya preparados se
 saltan. Al abrir un episodio preparado no se usa CPU extra.
-\fBpracticar \-\-estado\fR \fIvideo\fR... dice de cada episodio si ya está
+\fBpractice \-\-status\fR \fIvideo\fR... dice de cada episodio si ya está
 preparado (y qué porcentaje de líneas quedó con el tiempo exacto), solo
 sincronizado o sin preparar, sin procesar nada; sin argumentos, los de la
 carpeta actual. En los dos, una carpeta se cambia por sus videos, y los archivos
 que no son video (\fI.srt\fR, \fItt...\fR) se saltan, así que
-\fBpracticar \-\-estado *\fR también sirve.
-El texto se quita al reanudar la reproducción. \fBpracticar dudas\fR lista
+\fBpractice \-\-status *\fR también sirve.
+El texto se quita al reanudar la reproducción. \fBpractice saved\fR lista
 las dudas guardadas. Las teclas r, R, t y d reemplazan, solo en esta sesión,
 las de mpv para mover los subtítulos y desentrelazar.
 .SH OPCIONES
@@ -177,7 +177,7 @@ Idioma del audio, con código de Whisper de dos o tres letras
 Sin esta opción, Whisper detecta el idioma.
 Indicarlo reduce errores en frases cortas o con ruido.
 .TP
-.BR \-s ", " \-\-sistema
+.BR \-s ", " \-\-system
 Grabar lo que suena en la computadora (el monitor de la salida de audio
 predeterminada) en lugar del micrófono. Da mucho mejor resultado con videos
 o llamadas, porque no entra ruido del cuarto ni eco de las bocinas.
@@ -185,7 +185,7 @@ o llamadas, porque no entra ruido del cuarto ni eco de las bocinas.
 .BR \-l ", " \-\-loop
 Repetir: tras cada traducción vuelve a escuchar. Se sale con Ctrl+C.
 .TP
-.BR \-r ", " \-\-tiempo\-real
+.BR \-r ", " \-\-real\-time
 Escuchar sin parar y traducir cada frase en cuanto hay una pausa, sin presionar
 Enter. Se sale con Ctrl+C. Usa el mismo modelo \fBsmall\fR que el modo normal,
 pero con la ventana ajustada a cada frase (ver NOTAS), así que es más rápido y
@@ -194,14 +194,14 @@ frases muy cortas indicarlo con \fB\-\fIorigen\fR evita confusiones.
 No guarda \fIultimo.wav\fR. Con \fB\-s\fR se graba todo lo que suena
 en la computadora, así que también entra cualquier otro audio que esté sonando.
 .TP
-.BR \-f ", " \-\-rapido
+.BR \-f ", " \-\-fast
 Para emergencias (poca RAM o la CPU ocupada): usa el modelo \fBbase\fR (si
 \fBAUDIOTRANS_MODEL\fR no indica otro), que ocupa la mitad de RAM (~360 MB) y
 tarda ~0.25 s por frase y, con \fB\-r\fR, cierra las frases con 0.35 s de
 pausa en vez de 0.5 s. Se equivoca más, sobre todo en español y con nombres,
 números y palabras poco comunes.
 .TP
-.BR \-p ", " \-\-preciso
+.BR \-p ", " \-\-accurate
 Con \fB\-r\fR, entender mejor a cambio de más retraso: cierra las frases con
 0.8 s de pausa en vez de 0.5 s, permite frases de hasta 15 s y usa una ventana
 mínima de 15 s. Con voz real, el error por palabra baja de 8.8 % a 4.3 %
@@ -287,13 +287,13 @@ Enlaces a los comandos en \fIbin/\fR del repositorio, que los instala
 \fBtextrans\fR y \fItraduccion.py\fR, que decide entre el modelo local y Google.
 .TP
 .I ~/.cache/audiotrans/sincronizados/
-Subtítulos ya sincronizados de \fBpracticar\fR (\fI.srt\fR), y los de
-\fB\-\-preparar\fR (\fI.exacto.srt\fR y \fI.json\fR, que dice qué líneas tienen
+Subtítulos ya sincronizados de \fBpractice\fR (\fI.srt\fR), y los de
+\fB\-\-prepare\fR (\fI.exacto.srt\fR y \fI.json\fR, que dice qué líneas tienen
 tiempo exacto). Uno por combinación de video y \fI.srt\fR; se vuelven a generar
 si alguno cambia. Se pueden borrar.
 .TP
 .I ~/.local/share/audiotrans/dudas/
-Dudas de \fBpracticar\fR: \fIdudas.jsonl\fR (una por línea: episodio, tiempos,
+Dudas de \fBpractice\fR: \fIdudas.jsonl\fR (una por línea: episodio, tiempos,
 texto, traducción, fecha) y \fIaudio/\fR con un mp3 por duda.
 .TP
 .I ~/.local/share/audiotrans/opensubtitles

@@ -3,12 +3,12 @@
 Uso: alinear.py <video> <srt sincronizado> <salida.json> <salida.srt> [idioma]
 
 Aun sincronizado por tramos, cada línea del .srt tiene su propio error (hasta ~1 s), así
-que practicar usa márgenes amplios al repetir. Aquí se transcribe el episodio entero con
+que practice usa márgenes amplios al repetir. Aquí se transcribe el episodio entero con
 marcas por palabra y se buscan la primera y la última palabra de cada línea cerca de donde
 dice el .srt. Las líneas que se encuentran quedan con su tiempo exacto; las demás (canciones,
 números, frases que Whisper oyó distinto) conservan el del .srt. Tarda ~6 min por episodio en
 CPU (White Collar 1x01: 5 min 55 s, 74 % de las líneas exactas), por eso se hace con
-anticipación (practicar --preparar) y no al ver el episodio.
+anticipación (practice --prepare) y no al ver el episodio.
 """
 import json
 import os

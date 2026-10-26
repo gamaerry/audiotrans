@@ -11,10 +11,10 @@ extensiones_video='mp4|mkv|webm|avi|mov|m4v|mpg|mpeg|ts|wmv|flv|ogv'
 
 ayuda() {
     cat <<'EOF'
-Uso: practicar <video> [subtítulos.srt] [-<destino>]
-     practicar --preparar <video o carpeta> [...]
-     practicar --estado [<video o carpeta> ...]
-     practicar dudas
+Uso: practice <video> [subtítulos.srt] [-<destino>]
+     practice --prepare <video o carpeta> [...]
+     practice --status [<video o carpeta> ...]
+     practice saved
 
 Abre el video en mpv con los subtítulos ocultos. Cuando no entiendas algo:
   r  repetir la línea que acaba de pasar (se pausa al terminarla)
@@ -38,17 +38,17 @@ baja de OpenSubtitles en el idioma original (clave en
 del archivo o, si no hay, por el IMDb ID, comparando hasta 3 versiones con el
 audio para quedarse con la que mejor coincide. La primera vez que
 se abre un episodio, los subtítulos se sincronizan con el audio por tramos
-(~15 s); con --sin-sincronizar se usan tal cual.
+(~15 s); con --no-sync se usan tal cual.
 
---preparar ubica además cada línea en el audio palabra por palabra con
+--prepare ubica además cada línea en el audio palabra por palabra con
 Whisper (~6 min de CPU por episodio, con prioridad baja), para que r
 repita con el tiempo exacto. Conviene hacerlo antes, cuando no uses la
-computadora, p. ej.: practicar --preparar ~/Videos/white-collar
-Todo se guarda en ~/.cache/audiotrans/sincronizados/. --estado dice qué
+computadora, p. ej.: practice --prepare ~/Videos/white-collar
+Todo se guarda en ~/.cache/audiotrans/sincronizados/. --status dice qué
 episodios ya están preparados (sin argumentos, los de la carpeta actual).
 Con una carpeta se toman sus videos, y los archivos que no son video se saltan.
 
-La traducción va al idioma de la carpeta; para otro, p. ej. -fr. "practicar dudas"
+La traducción va al idioma de la carpeta; para otro, p. ej. -fr. "practice saved"
 lista las dudas guardadas (en ~/.local/share/audiotrans/dudas/).
 EOF
 }
@@ -86,7 +86,7 @@ marca_de() {
         -regex '.*/tt[0-9]+(\.[a-z]{2,3}-[a-z]{2,3})?' -printf '%f\n')
     [[ ${#marcas[@]} -eq 0 ]] && return 0
     if [[ ${#marcas[@]} -gt 1 ]]; then
-        echo "practicar: hay más de un archivo tt... en $dir: ${marcas[*]}" >&2
+        echo "practice: hay más de un archivo tt... en $dir: ${marcas[*]}" >&2
         exit 2
     fi
     nombre="${marcas[0]}"
@@ -102,7 +102,7 @@ descargar_srt() {
     local video="$1" srt="${1%.*}.srt"
     [[ -f "$srt" ]] && return 0
     if [[ -z "$imdb" ]]; then
-        echo "practicar: para bajar los subtítulos falta el IMDb ID de la serie o película:" >&2
+        echo "practice: para bajar los subtítulos falta el IMDb ID de la serie o película:" >&2
         echo "  touch \"$(cd "$(dirname "$video")" && pwd)/tt<número>.en-es\"" >&2
         echo "  (el número está en la dirección de IMDb, p. ej. imdb.com/title/tt1358522/)" >&2
         return 1
@@ -189,42 +189,43 @@ print(f"{round(100 * exactas / max(len(lineas), 1))} % de las líneas exactas")'
 
 video="" srt="" destino="" sincronizar=true
 case "${1:-}" in
-    dudas) exec "$python" "$lib/dudas.py" listar ;;
-    --preparar) shift; [[ $# -gt 0 ]] || { ayuda >&2; exit 2; }; preparar "$@"; exit 0 ;;
-    --estado) shift; estado "$@"; exit 0 ;;
+    saved) exec "$python" "$lib/dudas.py" listar ;;
+    --prepare) shift; [[ $# -gt 0 ]] || { ayuda >&2; exit 2; }; preparar "$@"; exit 0 ;;
+    --status) shift; estado "$@"; exit 0 ;;
 esac
 for arg in "$@"; do
     case "$arg" in
         -h|--help) ayuda; exit 0 ;;
-        --sin-sincronizar) sincronizar=false ;;
+        --no-sync) sincronizar=false ;;
         -[a-z][a-z]|-[a-z][a-z][a-z]) destino="${arg#-}" ;;
+        -*) echo "practice: opción desconocida: $arg (ver --help)" >&2; exit 2 ;;
         *.srt) srt="$arg" ;;
         *) video="$arg" ;;
     esac
 done
 
 [[ -n "$video" ]] || { ayuda >&2; exit 2; }
-[[ -f "$video" ]] || { echo "practicar: no encuentro el video: $video" >&2; exit 2; }
+[[ -f "$video" ]] || { echo "practice: no encuentro el video: $video" >&2; exit 2; }
 marca_de "$video"
 destino="${destino:-$destino_carpeta}"
 [[ -n "$srt" ]] || { descargar_srt "$video" || true; srt="${video%.*}.srt"; }
-[[ -f "$srt" ]] || { echo "practicar: no encuentro los subtítulos: $srt" >&2; exit 2; }
+[[ -f "$srt" ]] || { echo "practice: no encuentro los subtítulos: $srt" >&2; exit 2; }
 
 json=""
 if $sincronizar; then
     base="$(base_de "$video" "$srt")"
     if [[ -f "$base.json" ]]; then
-        srt="$base.exacto.srt" json="$base.json"  # preparado con --preparar
+        srt="$base.exacto.srt" json="$base.json"  # preparado con --prepare
     elif sincronizar "$video" "$srt" "$base"; then
         srt="$base.srt"
     else
-        echo "practicar: no se pudo sincronizar; uso el .srt tal cual" >&2
+        echo "practice: no se pudo sincronizar; uso el .srt tal cual" >&2
     fi
 fi
 
 # Las comas separan opciones en script-opts, así que las rutas no deben tenerlas
 for ruta in "$srt" "$json" "$lib" "$python"; do
-    [[ "$ruta" != *,* ]] || { echo "practicar: la ruta no puede tener comas: $ruta" >&2; exit 2; }
+    [[ "$ruta" != *,* ]] || { echo "practice: la ruta no puede tener comas: $ruta" >&2; exit 2; }
 done
 
 exec mpv --sub-file="$srt" --sub-visibility=no \

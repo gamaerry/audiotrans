@@ -30,7 +30,7 @@ He didn't say a word, but his eyes told me everything.
 
 ### Practicar listening con series
 
-`practicar episodio.mp4` abre el video en mpv con los subtítulos **ocultos**. Cuando no entiendes algo, lo consultas línea por línea sin salir del video. El orden está pensado para que primero vuelvas a escuchar, luego leas en inglés y al final traduzcas:
+`practice episodio.mp4` abre el video en mpv con los subtítulos **ocultos**. Cuando no entiendes algo, lo consultas línea por línea sin salir del video. El orden está pensado para que primero vuelvas a escuchar, luego leas en inglés y al final traduzcas:
 
 | Tecla | |
 |---|---|
@@ -49,27 +49,27 @@ touch ~/Videos/amelie/tt0211915.fr-es
 
 Si el nombre del video tiene temporada y episodio (`s1-e3`, `S01E03`, `1x03`), es un episodio de esa serie; si no, la película, sin importar cómo se llame el archivo. `-<destino>` al abrirlo cambia la traducción solo esa vez.
 
-Usa el `.srt` con el mismo nombre que el video. Si no existe, lo baja de [OpenSubtitles](https://www.opensubtitles.com/) en el idioma original: primero busca por el hash del archivo y, si no hay, por el ID de IMDb. Con el ID no se confunden obras con el mismo nombre (buscando "the office" salían mezcladas la británica, la de EE. UU. y la de 2024). En ese caso baja hasta 3 versiones, la más descargada de cada fuente (TV, WEB, DVD), y se queda con la que, ya sincronizada, mejor coincide con la voz (~10 s más). Necesita una clave de API, que se crea en [opensubtitles.com/consumers](https://www.opensubtitles.com/en/consumers) y se guarda como `api_key=<clave>` en `~/.local/share/audiotrans/opensubtitles`; sin iniciar sesión, OpenSubtitles da 100 descargas al día. Muchos `.mkv` traen los subtítulos dentro y se extraen con `ffmpeg -i video.mkv -map 0:s:0 video.srt`. La primera vez que abres un episodio, los subtítulos se **sincronizan con el audio por tramos** (~15 s, se guarda en caché): si el `.srt` es de otra versión del video, cada parte del episodio se corrige por separado. `practicar dudas` lista lo guardado.
+Usa el `.srt` con el mismo nombre que el video. Si no existe, lo baja de [OpenSubtitles](https://www.opensubtitles.com/) en el idioma original: primero busca por el hash del archivo y, si no hay, por el ID de IMDb. Con el ID no se confunden obras con el mismo nombre (buscando "the office" salían mezcladas la británica, la de EE. UU. y la de 2024). En ese caso baja hasta 3 versiones, la más descargada de cada fuente (TV, WEB, DVD), y se queda con la que, ya sincronizada, mejor coincide con la voz (~10 s más). Necesita una clave de API, que se crea en [opensubtitles.com/consumers](https://www.opensubtitles.com/en/consumers) y se guarda como `api_key=<clave>` en `~/.local/share/audiotrans/opensubtitles`; sin iniciar sesión, OpenSubtitles da 100 descargas al día. Muchos `.mkv` traen los subtítulos dentro y se extraen con `ffmpeg -i video.mkv -map 0:s:0 video.srt`. La primera vez que abres un episodio, los subtítulos se **sincronizan con el audio por tramos** (~15 s, se guarda en caché): si el `.srt` es de otra versión del video, cada parte del episodio se corrige por separado. `practice saved` lista lo guardado.
 
-Para que `r` repita con el tiempo exacto, prepara los episodios con anticipación, cuando no uses la computadora: `practicar --preparar ~/Videos/serie` (o solo algunos episodios). Whisper ubica cada línea palabra por palabra (~6 min por episodio, con prioridad baja). Al verlos ya no se usa CPU extra. `practicar --estado` dice cuáles de la carpeta actual ya están preparados; también acepta carpetas o videos sueltos, y salta lo que no es video.
+Para que `r` repita con el tiempo exacto, prepara los episodios con anticipación, cuando no uses la computadora: `practice --prepare ~/Videos/serie` (o solo algunos episodios). Whisper ubica cada línea palabra por palabra (~6 min por episodio, con prioridad baja). Al verlos ya no se usa CPU extra. `practice --status` dice cuáles de la carpeta actual ya están preparados; también acepta carpetas o videos sueltos, y salta lo que no es video.
 
 Opciones de los comandos de audio (`audiotrans`):
 
 | Opción | |
 |---|---|
-| `-r`, `--tiempo-real` | escucha sin parar y traduce cada frase al detectar una pausa |
+| `-r`, `--real-time` | escucha sin parar y traduce cada frase al detectar una pausa |
 | `-l`, `--loop` | repite el modo con Enter |
 | `-<origen>` | idioma del audio (`-en`, `-ja`…); si no se da, se detecta |
-| `-p`, `--preciso` | con `-r`: frases más largas y ventana de 15 s; ~4 % de error en lugar de ~9 %, con ~2 s de retraso |
-| `-f`, `--rapido` | modelo `base`: la mitad de RAM, ~0.25 s por frase, menos preciso |
+| `-p`, `--accurate` | con `-r`: frases más largas y ventana de 15 s; ~4 % de error en lugar de ~9 %, con ~2 s de retraso |
+| `-f`, `--fast` | modelo `base`: la mitad de RAM, ~0.25 s por frase, menos preciso |
 | `-g`, `--google` | traduce con Google aunque haya modelo local (entiende jerga) |
-| `-s`, `--sistema` | graba la salida de audio en lugar del micrófono |
+| `-s`, `--system` | graba la salida de audio en lugar del micrófono |
 
 `es`, `en`, `cbes` y los demás alias de texto aceptan `-g` y `-<origen>`. Todo está documentado en `man audiotrans` y en `--help`.
 
 ## Instalación
 
-Requiere Linux con PipeWire, [uv](https://docs.astral.sh/uv/) y unos 1.2 GB de disco: venv, Whisper `small` y los dos traductores (`base`, con `-f`, unos 140 MB más). `trans` ([translate-shell](https://github.com/soimort/translate-shell)) y `wl-paste` son opcionales; `practicar` necesita [mpv](https://mpv.io/) y `ffmpeg`.
+Requiere Linux con PipeWire, [uv](https://docs.astral.sh/uv/) y unos 1.2 GB de disco: venv, Whisper `small` y los dos traductores (`base`, con `-f`, unos 140 MB más). `trans` ([translate-shell](https://github.com/soimort/translate-shell)) y `wl-paste` son opcionales; `practice` necesita [mpv](https://mpv.io/) y `ffmpeg`.
 
 ```bash
 git clone https://github.com/gamaerry/audiotrans.git
@@ -172,7 +172,7 @@ Como las versiones de TV tienen otros cortes, cuando OpenSubtitles no tiene el `
 
 Aun sincronizado, cada línea tiene su propio error de tiempo, porque quien hace los subtítulos no los ajusta al milisegundo. Por eso `r` empieza 0.9 s antes y termina 0.5 s después: con el inicio de cada palabra medido en 120 líneas, 0.9 s cubre el 95 % de los inicios (0.3 s solo el 84 %), y 0.5 s el 100 % de los finales. Ajustar cada inicio a donde el VAD detecta voz lo empeoró (de 14 % a 17–24 % de líneas que empezaban tarde), porque con música y efectos el VAD no es preciso al décimo de segundo.
 
-Con `practicar --preparar`, [`lib/alinear.py`](lib/alinear.py) transcribe el episodio entero con marcas por palabra y ubica la primera y la última palabra de cada línea cerca de donde dice el `.srt`. En 1x01 encontró el 75 % de las líneas, en 7 min 53 s. Las que faltan son canciones, frases muy cortas y frases que Whisper oyó distinto. Contra una medición aparte, 0.5 s de margen cubre el 95 % de esos inicios y 0.4 s el 100 % de los finales, así que esas líneas se repiten casi sin oír la anterior.
+Con `practice --prepare`, [`lib/alinear.py`](lib/alinear.py) transcribe el episodio entero con marcas por palabra y ubica la primera y la última palabra de cada línea cerca de donde dice el `.srt`. En 1x01 encontró el 75 % de las líneas, en 7 min 53 s. Las que faltan son canciones, frases muy cortas y frases que Whisper oyó distinto. Contra una medición aparte, 0.5 s de margen cubre el 95 % de esos inicios y 0.4 s el 100 % de los finales, así que esas líneas se repiten casi sin oír la anterior.
 
 También probé corregir las líneas sin tiempo exacto con el desfase de sus vecinas exactas, y no ayudó: en 1x01 la mediana del error bajó de 0.18 a 0.16 s, pero las que empezaban tarde subieron de 6.4 % a 7.3 %. El error de cada línea es de quien hizo los subtítulos, y no se comparte con las vecinas.
 
@@ -205,12 +205,12 @@ Una lección: medir con el inicio de los segmentos de Whisper, en lugar de por p
 ```
 bin/audiotrans      graba (micrófono o sistema) y coordina todo
 bin/textrans        traduce texto
-bin/practicar       abre un video en mpv para practicar listening
+bin/practice        abre un video en mpv para practicar listening
 mpv/audiotrans.lua  teclas r/R/t/y/d dentro de mpv
 lib/dudas.py        guarda las dudas con su fragmento de audio
 lib/sincronizar.py  sincroniza el .srt con el audio por tramos
 lib/subtitulos.py   baja el .srt de OpenSubtitles si falta
-lib/alinear.py      ubica cada línea palabra por palabra (practicar --preparar)
+lib/alinear.py      ubica cada línea palabra por palabra (practice --prepare)
 lib/whisper_corto.py   Whisper con ventana ajustada (descubrimientos 1 y 2)
 lib/tiempo_real.py     modo -r: contexto entre frases y traducción en paralelo
 lib/frases.py          corta el audio continuo en frases con el VAD

@@ -1,7 +1,7 @@
 """Descarga de OpenSubtitles los subtítulos de un video, para practicar cuando no trae .srt.
 
 Uso: subtitulos.py <video> <salida.srt> <IMDb ID> [idioma]
-El IMDb ID es el de la serie o la película (practicar lo toma de un archivo tt<número> en la
+El IMDb ID es el de la serie o la película (practice lo toma de un archivo tt<número> en la
 carpeta del video). Si el nombre del video tiene temporada y episodio (s1-e3, S01E03, 1x03), es
 un episodio de esa serie; si no, la película. Busca primero por el hash del archivo (el mismo
 video, así que casi no hay desfase) y, si no hay, por el IMDb ID. En ese caso baja hasta CANDIDATOS, uno por cada fuente (TV, WEB, DVD...),

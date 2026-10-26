@@ -11,7 +11,7 @@ man1="$HOME/.local/share/man/man1"
 for c in uv pw-record pactl; do
     command -v "$c" >/dev/null || { echo "Falta $c (uv: https://docs.astral.sh/uv/; pw-record y pactl: PipeWire)" >&2; exit 1; }
 done
-declare -A opcional=([trans]="esp/eng y respaldo de Google" [wl-paste]="cbes/cben/pses/psen" [mpv]="practicar" [ffmpeg]="practicar")
+declare -A opcional=([trans]="esp/eng y respaldo de Google" [wl-paste]="cbes/cben/pses/psen" [mpv]="practice" [ffmpeg]="practice")
 for c in "${!opcional[@]}"; do
     command -v "$c" >/dev/null || echo "Aviso: no está $c (opcional, para ${opcional[$c]})"
 done
@@ -46,9 +46,9 @@ echo "== Comandos y manual"
 mkdir -p "$bin" "$man1"
 ln -sfn "$repo/bin/audiotrans" "$bin/audiotrans"
 ln -sfn "$repo/bin/textrans" "$bin/textrans"
-ln -sfn "$repo/bin/practicar" "$bin/practicar"
+ln -sfn "$repo/bin/practice" "$bin/practice"
 ln -sfn "$repo/man/audiotrans.1" "$man1/audiotrans.1"
-for a in textrans practicar es en cbes cben pses psen mes men ses sen; do
+for a in textrans practice es en cbes cben pses psen mes men ses sen; do
     echo ".so man1/audiotrans.1" > "$man1/$a.1"
 done
 

@@ -4,7 +4,7 @@
 --   t  mostrar el texto original de la línea
 --   y  mostrar la traducción
 --   d  guardar la línea como duda, con su audio (para repasar en Anki)
--- Se carga con el comando practicar, que le pasa las rutas en script-opts.
+-- Se carga con el comando practice, que le pasa las rutas en script-opts.
 
 local mp = require "mp"
 local utils = require "mp.utils"
@@ -18,7 +18,7 @@ options.read_options(opts, "audiotrans")
 -- (0.3 s solo el 84 %), y terminar 0.5 s después, el 100 %
 local MARGEN_INICIO = 0.9
 local MARGEN_FIN = 0.5
--- Con practicar --preparar, las líneas que Whisper ubicó palabra por palabra (75 % en 1x01)
+-- Con practice --prepare, las líneas que Whisper ubicó palabra por palabra (75 % en 1x01)
 -- tienen su tiempo casi exacto: contra una medición aparte, 0.5 s antes cubre el 95 % de los
 -- inicios y 0.4 s después el 100 % de los finales
 local MARGEN_INICIO_EXACTO = 0.5
@@ -61,7 +61,7 @@ local function cargar_srt(ruta)
 end
 
 local function cargar_json(ruta)
-    -- Generado por lib/alinear.py (practicar --preparar)
+    -- Generado por lib/alinear.py (practice --prepare)
     local f = io.open(ruta, "r")
     if not f then return false end
     local datos = utils.parse_json(f:read("*a"))

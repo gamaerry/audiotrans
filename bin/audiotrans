@@ -19,15 +19,15 @@ internet); los demás idiomas, con Google.
 
 Opciones:
   -<origen>      idioma del audio (p. ej. -en, -ja); sin esto se detecta solo
-  -s, --sistema  grabar lo que suena en la computadora en vez del micrófono
+  -s, --system   grabar lo que suena en la computadora en vez del micrófono
   -l, --loop     repetir: tras cada traducción vuelve a escuchar (Ctrl+C sale)
-  -r, --tiempo-real
+  -r, --real-time
                  escuchar sin parar y traducir cada frase al detectar una pausa,
                  sin presionar Enter (Ctrl+C sale); ~0.5 s por frase
-  -p, --preciso  con -r: entiende mucho mejor (errores por palabra: 9 % → 4 %,
+  -p, --accurate con -r: entiende mucho mejor (errores por palabra: 9 % → 4 %,
                  con ruido 9 % → 6 %) a cambio de ~2 s de retraso por frase
                  en vez de ~0.6 s; para películas y videos con ruido
-  -f, --rapido   para emergencias: modelo base (mitad de RAM, ~0.25 s por
+  -f, --fast     para emergencias: modelo base (mitad de RAM, ~0.25 s por
                  frase, se equivoca más) y, con -r, pausas más cortas
   -g, --google   traducir con Google aunque haya modelo local (entiende mejor
                  modismos y jerga, p. ej. "la neta", pero necesita internet)
@@ -71,10 +71,10 @@ for arg in "$@"; do
     case "$arg" in
         -h|--help) ayuda; exit 0 ;;
         -l|--loop) bucle=true ;;
-        -s|--sistema) sistema=true ;;
-        -r|--tiempo-real) real=true ;;
-        -f|--rapido) rapido=true ;;
-        -p|--preciso) preciso=true ;;
+        -s|--system) sistema=true ;;
+        -r|--real-time) real=true ;;
+        -f|--fast) rapido=true ;;
+        -p|--accurate) preciso=true ;;
         -g|--google) google=true ;;
         -[a-z][a-z]|-[a-z][a-z][a-z]) origen="${arg#-}" ;;
         -*) echo "audiotrans: opción desconocida: $arg (ver --help)" >&2; exit 2 ;;
