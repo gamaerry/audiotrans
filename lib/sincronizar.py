@@ -11,6 +11,12 @@ línea toma el desplazamiento de su zona, interpolado entre ventanas.
 Cada ventana busca cerca del desfase de la anterior y no cerca de 0, porque en una versión
 de TV con los cortes comerciales recortados el desfase se acumula: en el .srt HDTV de
 White Collar 1x02 sube ~2.5 s en cada corte, hasta +10.4 s al final.
+
+Esos cambios son escalones, no una deriva: interpolar entre ventanas de 5 min repartía el
+salto en un minuto, con líneas desfasadas hasta ~1 s cerca de cada corte. Donde dos
+ventanas seguidas difieren más de SALTO, todas las líneas toman uno u otro desfase, y la
+frontera es la que mejor encima los subtítulos sobre la voz. Una deriva gradual (1x01) se
+sigue interpolando.
 """
 import re
 import subprocess
@@ -24,6 +30,7 @@ RES = 100           # muestras por segundo de las señales de voz y subtítulos
 VENTANA = 300       # s de audio que se comparan para estimar cada desfase
 PASO = 60           # s entre una ventana y la siguiente
 MAX_DESFASE = 8     # s: cuánto puede cambiar el desfase de una ventana a la siguiente
+SALTO = 0.3         # s: más que esto entre ventanas seguidas es un corte, no una deriva
 
 PATRON = re.compile(r"(\d+):(\d+):(\d+)[,.](\d+)\s*-->\s*(\d+):(\d+):(\d+)[,.](\d+)")
 
@@ -102,11 +109,41 @@ def ajustar(bloques, voz):
     # Mediana de 3 ventanas vecinas: quita estimaciones sueltas que se salen (música, efectos)
     crudos = np.array([d for _, d in estimados])
     suaves = np.array([np.median(crudos[max(0, i - 1):i + 2]) for i in range(len(crudos))])
-    ajustados = []
-    for inicio, fin, resto in bloques:
-        d = float(np.interp((inicio + fin) / 2, centros, suaves))
-        ajustados.append((inicio + d, fin + d, resto))
+    medios = np.array([(inicio + fin) / 2 for inicio, fin, _ in bloques])
+    d = np.interp(medios, centros, suaves)
+    escalones(bloques, medios, d, centros, suaves, voz - voz.mean())
+    ajustados = [(inicio + x, fin + x, resto) for (inicio, fin, resto), x in zip(bloques, d)]
     return ajustados, list(zip(centros, suaves))
+
+
+def escalones(bloques, medios, d, centros, suaves, voz_c):
+    """Cambia en d la interpolación de cada salto por un escalón en la mejor frontera."""
+    def encima(n, x):
+        # cuánto cae la línea n sobre la voz si se desplaza x segundos
+        inicio, fin, _ = bloques[n]
+        return float(voz_c[max(0, int((inicio + x) * RES)):max(0, int((fin + x) * RES))].sum())
+
+    saltos = [i for i in range(len(suaves) - 1) if abs(suaves[i + 1] - suaves[i]) > SALTO]
+    frontera = -np.inf
+    for k, i in enumerate(saltos):
+        antes, despues = suaves[i], suaves[i + 1]
+        # La mediana y las ventanas de 5 min mueven dónde cambia la estimación: se busca un PASO
+        # más allá de los dos centros, sin cruzar la frontera anterior ni el salto siguiente
+        lo = max(centros[i] - PASO, frontera)
+        hi = centros[i + 1] + PASO
+        if k + 1 < len(saltos):
+            hi = min(hi, centros[saltos[k + 1] + 1])
+        zona = np.flatnonzero((medios >= lo) & (medios < hi))
+        if len(zona) == 0:
+            continue
+        a = np.array([encima(n, antes) for n in zona])
+        b = np.array([encima(n, despues) for n in zona])
+        # puntaje si las primeras j líneas toman `antes` y el resto `despues`, para j = 0..len
+        puntos = np.concatenate([[0], np.cumsum(a)]) + np.concatenate([np.cumsum(b[::-1])[::-1], [0]])
+        j = int(np.argmax(puntos))
+        d[zona[:j]] = antes
+        d[zona[j:]] = despues
+        frontera = medios[zona[j]] if j < len(zona) else hi
 
 
 def coincidencia(voz, bloques):

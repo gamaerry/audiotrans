@@ -160,11 +160,21 @@ Los `.srt` descargados suelen ser de otra versión del video. En White Collar 1x
 
 Cada ventana busca a ±8 s del desfase de la anterior, no de 0, porque en las versiones de TV a las que les recortaron los comerciales el desfase se acumula. El `.srt` HDTV de 1x02 que bajó OpenSubtitles se adelanta ~2.5 s más en cada corte, hasta 10.4 s al final. Buscando a ±8 s de 0, la segunda mitad quedaba 2.3 s antes que la voz; con la búsqueda relativa, de −0.3 a +0.25 s en 7 de las 8 zonas, y −0.74 s en la que queda junto a un corte (las ventanas de 5 min suavizan el salto).
 
-Por eso, cuando OpenSubtitles no tiene el `.srt` del mismo archivo, se comparan versiones de fuentes distintas, porque las de una misma fuente tienen los mismos cortes. En 1x03, la más descargada era HDTV (78 717 descargas). Ya sincronizadas, la correlación entre voz y subtítulos fue de 0.518 para HDTV, 0.549 para WEB-DL y 0.545 para DVD. Medido por palabra, WEB y DVD quedaron dentro de ±0.21 s en las 8 zonas; HDTV quedó a −1.21 s en una y tenía menos líneas reconocibles (14 contra 24 en una zona).
+Esos cambios son escalones, pero al principio se interpolaban en línea recta entre las ventanas, y cada salto quedaba repartido en un minuto. Ahora, donde dos ventanas seguidas difieren más de 0.3 s, cada línea toma uno u otro desfase, y la frontera es la que mejor encima los subtítulos sobre la voz. Una deriva gradual, como la de 1x01, se sigue interpolando. Medido línea por línea contra las palabras de Whisper (la referencia se busca desde las dos sincronizaciones y solo cuentan las líneas en que coinciden):
+
+| líneas desfasadas más de 1 s | interpolado | escalones |
+|---|---|---|
+| 1x02 HDTV, todas / a ±2 min de un corte | 14.0 % / 20.4 % | **6.2 % / 3.1 %** |
+| 1x03 HDTV, todas / a ±2 min de un corte | 14.6 % / 27.4 % | **5.5 % / 4.3 %** |
+| 1x01 y 1x03 WEB (sin cortes) | igual | igual |
+
+Como las versiones de TV tienen otros cortes, cuando OpenSubtitles no tiene el `.srt` del mismo archivo se comparan versiones de fuentes distintas, porque las de una misma fuente tienen los mismos cortes. En 1x03, la más descargada era HDTV (78 717 descargas). Ya sincronizadas, la correlación entre voz y subtítulos fue de 0.518 para HDTV, 0.549 para WEB-DL y 0.545 para DVD. Medido por palabra, WEB y DVD quedaron dentro de ±0.21 s en las 8 zonas; HDTV quedó a −1.21 s en una y tenía menos líneas reconocibles (14 contra 24 en una zona).
 
 Aun sincronizado, cada línea tiene su propio error de tiempo, porque quien hace los subtítulos no los ajusta al milisegundo. Por eso `r` empieza 0.9 s antes y termina 0.5 s después: con el inicio de cada palabra medido en 120 líneas, 0.9 s cubre el 95 % de los inicios (0.3 s solo el 84 %), y 0.5 s el 100 % de los finales. Ajustar cada inicio a donde el VAD detecta voz lo empeoró (de 14 % a 17–24 % de líneas que empezaban tarde), porque con música y efectos el VAD no es preciso al décimo de segundo.
 
 Con `practicar --preparar`, [`lib/alinear.py`](lib/alinear.py) transcribe el episodio entero con marcas por palabra y ubica la primera y la última palabra de cada línea cerca de donde dice el `.srt`. En 1x01 encontró el 75 % de las líneas, en 7 min 53 s. Las que faltan son canciones, frases muy cortas y frases que Whisper oyó distinto. Contra una medición aparte, 0.5 s de margen cubre el 95 % de esos inicios y 0.4 s el 100 % de los finales, así que esas líneas se repiten casi sin oír la anterior.
+
+También probé corregir las líneas sin tiempo exacto con el desfase de sus vecinas exactas, y no ayudó: en 1x01 la mediana del error bajó de 0.18 a 0.16 s, pero las que empezaban tarde subieron de 6.4 % a 7.3 %. El error de cada línea es de quien hizo los subtítulos, y no se comparte con las vecinas.
 
 Para que tarde menos medí cuatro configuraciones en 1x01, intercaladas en 3 rondas (mediana; la desviación fue de 1–2 s):
 
