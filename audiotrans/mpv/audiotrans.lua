@@ -29,6 +29,7 @@ local lineas = {}        -- { inicio = s, fin = s, texto = "...", inicio_exacto,
 local foco = nil         -- índice de la línea con la que se está trabajando
 local pausar_en = nil    -- tiempo (del video) en el que pausar al terminar una repetición
 local velocidad = nil    -- velocidad de antes de una repetición lenta, para restaurarla
+local buscando = false   -- mientras llega el salto de una repetición, time-pos aún puede ser el de antes
 local overlay = mp.create_osd_overlay("ass-events")
 local mostrado = {}      -- lo que se ve en pantalla: { original = ..., traduccion = ... }
 
@@ -140,16 +141,28 @@ local function repetir(i, lento)
     end
     local antes, despues = margenes(l)
     pausar_en = l.fin + retraso() + despues
+    buscando = true
+    mp.msg.verbose("repetir: " .. l.texto:gsub("\n", " "))
     mp.commandv("seek", tostring(math.max(0, l.inicio + retraso() - antes)), "absolute+exact")
     mp.set_property_bool("pause", false)
 end
 
+mp.register_event("playback-restart", function() buscando = false end)
+
 mp.observe_property("time-pos", "number", function(_, t)
-    if not t then return end
-    if pausar_en and t >= pausar_en then
-        terminar_repeticion()
-        mp.set_property_bool("pause", true)
-    elseif not pausar_en and foco then
+    if not t or buscando then return end
+    if pausar_en then
+        local l = lineas[foco]
+        if t < l.inicio + retraso() - margenes(l) - 1 or t > pausar_en + 1 then
+            -- Se fue a otra parte durante la repetición: se cancela, sin pausar, y la siguiente
+            -- r es sobre donde está ahora y no sobre la línea de antes
+            terminar_repeticion()
+            foco = nil
+        elseif t >= pausar_en then
+            terminar_repeticion()
+            mp.set_property_bool("pause", true)
+        end
+    elseif foco then
         -- Se suelta en cuanto el tiempo sale del tramo que repite r y ya apunta a otra línea
         -- (la reproducción siguió o se regresó). Soltarla 1.5 s después del final saltaba
         -- líneas cortas como "Coffee?" y, al regresar, se quedaba con la línea de antes
