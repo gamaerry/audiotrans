@@ -8,8 +8,8 @@ jobs:
   pruebas:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
       - name: Instalar el paquete (no editable, para que falten los archivos que no se empaqueten)
         run: |
           uv venv --python 3.12
@@ -20,6 +20,7 @@ jobs:
       - name: Sintaxis de bash, del manual y del Lua
         run: |
           bash -n audiotrans/sh/audiotrans audiotrans/sh/practice instalar.sh audiotrans/alias.sh
-          sudo apt-get install -y -qq groff luajit >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq --no-install-recommends groff-base luajit >/dev/null
           test -z "$(groff -k -man -ww -z audiotrans/man/audiotrans.1 2>&1)"
           luajit -b audiotrans/mpv/audiotrans.lua /dev/null
