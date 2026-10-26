@@ -4,6 +4,7 @@
 --   t  mostrar el texto original de la línea
 --   y  mostrar la traducción
 --   d  guardar la línea como duda, con su audio (para repasar en Anki)
+--   c  seguir viendo con los subtítulos de mpv visibles (otra vez c para quitarlos)
 -- Se carga con el comando practice, que le pasa las rutas en script-opts.
 
 local mp = require "mp"
@@ -32,6 +33,7 @@ local velocidad = nil    -- velocidad de antes de una repetición lenta, para re
 local buscando = false   -- mientras llega el salto de una repetición, time-pos aún puede ser el de antes
 local overlay = mp.create_osd_overlay("ass-events")
 local mostrado = {}      -- lo que se ve en pantalla: { original = ..., traduccion = ... }
+local subs_ocultos = false  -- dibujar() quitó los subtítulos de mpv para que no se encimen
 
 local function a_segundos(h, m, s, ms)
     return tonumber(h) * 3600 + tonumber(m) * 60 + tonumber(s) + tonumber(ms) / 1000
@@ -111,6 +113,10 @@ local function dibujar()
     if mostrado.traduccion then
         table.insert(partes, "{\\an2\\fs34\\bord2\\1c&H66DDFF&}" .. escapar_ass(mostrado.traduccion))
     end
+    if not subs_ocultos and mp.get_property_bool("sub-visibility") then
+        mp.set_property_bool("sub-visibility", false)
+        subs_ocultos = true
+    end
     overlay.data = table.concat(partes, "\\N")
     mp.msg.verbose("en pantalla: " .. overlay.data)
     overlay:update()
@@ -119,6 +125,10 @@ end
 local function ocultar()
     mostrado = {}
     overlay:remove()
+    if subs_ocultos then
+        mp.set_property_bool("sub-visibility", true)
+        subs_ocultos = false
+    end
 end
 
 local function terminar_repeticion()
@@ -225,6 +235,16 @@ local function guardar_duda()
     end)
 end
 
+local function continuar_con_subtitulos()
+    -- Solo cambia sub-visibility (la v de mpv) y reanuda: r, t, y y d siguen igual
+    local visibles = not (mp.get_property_bool("sub-visibility") or subs_ocultos)
+    terminar_repeticion()
+    ocultar()
+    mp.set_property_bool("sub-visibility", visibles)
+    mp.set_property_bool("pause", false)
+    mp.osd_message(visibles and "Con subtítulos (c para quitarlos)" or "Sin subtítulos")
+end
+
 local cargado
 if opts.json ~= "" then cargado = cargar_json(opts.json) else cargado = opts.srt ~= "" and cargar_srt(opts.srt) end
 if cargado then
@@ -233,11 +253,12 @@ if cargado then
     mp.add_forced_key_binding("t", "audiotrans-texto", mostrar_texto)
     mp.add_forced_key_binding("y", "audiotrans-traduccion", mostrar_traduccion)
     mp.add_forced_key_binding("d", "audiotrans-duda", guardar_duda)
+    mp.add_forced_key_binding("c", "audiotrans-subtitulos", continuar_con_subtitulos)
     local exactas = 0
     for _, l in ipairs(lineas) do if l.inicio_exacto and l.fin_exacto then exactas = exactas + 1 end end
     local preparado = opts.json ~= "" and string.format(" (%d %% con tiempo exacto)", math.floor(100 * exactas / #lineas)) or ""
     mp.register_event("file-loaded", function()
-        mp.osd_message(#lineas .. " líneas" .. preparado .. " · r repetir · R más lento · t texto · y traducción · d guardar duda", 6)
+        mp.osd_message(#lineas .. " líneas" .. preparado .. " · r repetir · R más lento · t texto · y traducción · d guardar duda · c con subtítulos", 6)
     end)
 else
     mp.msg.warn("audiotrans: no se pudieron leer los subtítulos: " .. (opts.json ~= "" and opts.json or opts.srt))
