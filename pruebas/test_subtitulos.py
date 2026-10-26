@@ -5,6 +5,12 @@ def test_episodio_de():
     assert s.episodio_de("s1-e3.mp4") == (1, 3)
     assert s.episodio_de("White.Collar.S01E03.720p.mkv") == (1, 3)
     assert s.episodio_de("/v/1x03.mp4") == (1, 3)
+    assert s.episodio_de("2x3.mp4") == (2, 3)
+    assert s.episodio_de("Show_2x3.mkv") == (2, 3)
+    assert s.episodio_de("2X03.mp4") == (2, 3)
+    assert s.episodio_de("t2e1.mp4") == (2, 1)
+    assert s.episodio_de("Serie.T02E01.mkv") == (2, 1)
+    assert s.episodio_de("pelicula.1920x1080.mkv") == (None, None)
     assert s.episodio_de("amelie.mp4") == (None, None)
 
 

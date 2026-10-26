@@ -30,7 +30,7 @@ Cada serie o película va en su carpeta, con un archivo vacío que dice su
 IMDb ID y el par de idiomas: el original y al que se traduce (sin par, en-es):
   touch ~/Videos/white-collar/tt1358522.en-es
   touch ~/Videos/amelie/tt0211915.fr-es
-Con temporada y episodio en el nombre (s1-e3, S01E03, 1x03) es un episodio de
+Con temporada y episodio en el nombre (s1-e3, S01E03, t1e3, 1x03) es un episodio de
 esa serie; si no, la película.
 
 Sin .srt se usa el que tenga el mismo nombre que el video, y si no existe se

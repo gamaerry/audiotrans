@@ -47,7 +47,7 @@ touch ~/Videos/white-collar/tt1358522        # en-es
 touch ~/Videos/amelie/tt0211915.fr-es
 ```
 
-Si el nombre del video tiene temporada y episodio (`s1-e3`, `S01E03`, `1x03`), es un episodio de esa serie; si no, la película, sin importar cómo se llame el archivo. `-<destino>` al abrirlo cambia la traducción solo esa vez.
+Si el nombre del video tiene temporada y episodio (`s1-e3`, `S01E03`, `t1e3`, `1x03`), es un episodio de esa serie; si no, la película, sin importar cómo se llame el archivo. `-<destino>` al abrirlo cambia la traducción solo esa vez.
 
 Usa el `.srt` con el mismo nombre que el video. Si no existe, lo baja de [OpenSubtitles](https://www.opensubtitles.com/) en el idioma original: primero busca por el hash del archivo y, si no hay, por el ID de IMDb. Con el ID no se confunden obras con el mismo nombre (buscando "the office" salían mezcladas la británica, la de EE. UU. y la de 2024). En ese caso baja hasta 3 versiones, la más descargada de cada fuente (TV, WEB, DVD), y se queda con la que, ya sincronizada, mejor coincide con la voz (~10 s más). Necesita una clave de API, que se crea en [opensubtitles.com/consumers](https://www.opensubtitles.com/en/consumers) y se guarda como `api_key=<clave>` en `~/.local/share/audiotrans/opensubtitles`; sin iniciar sesión, OpenSubtitles da 100 descargas al día. Muchos `.mkv` traen los subtítulos dentro y se extraen con `ffmpeg -i video.mkv -map 0:s:0 video.srt`. La primera vez que abres un episodio, los subtítulos se **sincronizan con el audio por tramos** (~15 s, se guarda en caché): si el `.srt` es de otra versión del video, cada parte del episodio se corrige por separado. `practice saved` lista lo guardado.
 

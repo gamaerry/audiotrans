@@ -2,7 +2,7 @@
 
 Uso: python -m audiotrans.subtitulos <video> <salida.srt> <IMDb ID> [idioma]
 El IMDb ID es el de la serie o la película (practice lo toma de un archivo tt<número> en la
-carpeta del video). Si el nombre del video tiene temporada y episodio (s1-e3, S01E03, 1x03), es
+carpeta del video). Si el nombre del video tiene temporada y episodio (s1-e3, S01E03, t1e3, 1x03), es
 un episodio de esa serie; si no, la película. Busca primero por el hash del archivo (el mismo
 video, así que casi no hay desfase) y, si no hay, por el IMDb ID. En ese caso baja hasta CANDIDATOS, uno por cada fuente (TV, WEB, DVD...),
 porque las versiones de una misma fuente tienen los mismos cortes, y se queda con el que, ya
@@ -72,7 +72,9 @@ def hash_video(ruta):
 def episodio_de(ruta):
     # (temporada, episodio) a partir del nombre, o (None, None) si es una película
     nombre = os.path.splitext(os.path.basename(ruta))[0]
-    m = re.search(r"[sS](\d{1,2})[ ._-]*[eE](\d{1,3})", nombre) or re.search(r"\b(\d{1,2})x(\d{1,3})\b", nombre)
+    # s1e3 o t1e3 (temporada); 1x03 sin otros dígitos pegados, para no tomar 1920x1080
+    m = (re.search(r"[sStT](\d{1,2})[ ._-]*[eE](\d{1,3})", nombre)
+         or re.search(r"(?<!\d)(\d{1,2})[xX](\d{1,3})(?!\d)", nombre))
     return (int(m.group(1)), int(m.group(2))) if m else (None, None)
 
 
