@@ -69,7 +69,7 @@ Opciones de los comandos de audio (`audiotrans`):
 
 ## Instalación
 
-Requiere Linux con PipeWire, [uv](https://docs.astral.sh/uv/) y unos 1.5 GB de disco: venv, Whisper `small` y los dos traductores. `trans` ([translate-shell](https://github.com/soimort/translate-shell)) y `wl-paste` son opcionales; `practicar` necesita [mpv](https://mpv.io/) y `ffmpeg`.
+Requiere Linux con PipeWire, [uv](https://docs.astral.sh/uv/) y unos 1.2 GB de disco: venv, Whisper `small` y los dos traductores (`base`, con `-f`, unos 140 MB más). `trans` ([translate-shell](https://github.com/soimort/translate-shell)) y `wl-paste` son opcionales; `practicar` necesita [mpv](https://mpv.io/) y `ffmpeg`.
 
 ```bash
 git clone https://github.com/gamaerry/audiotrans.git
