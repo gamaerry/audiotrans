@@ -6,6 +6,8 @@ lua="$(dirname "$(readlink -f "$0")")/../mpv/audiotrans.lua"
 export AUDIOTRANS_DATOS="${AUDIOTRANS_DATOS:-$HOME/.local/share/audiotrans}"
 python="${AUDIOTRANS_PYTHON:-python3}"  # lo pasa el punto de entrada (lanzar.py)
 cache="$HOME/.cache/audiotrans/sincronizados"
+# Súbela cuando cambie lo que producen sincronizar.py o alinear.py, para no usar la caché vieja
+version_cache=2
 extensiones_video='mp4|mkv|webm|avi|mov|m4v|mpg|mpeg|ts|wmv|flv|ogv'
 
 ayuda() {
@@ -53,10 +55,10 @@ EOF
 }
 
 base_de() {
-    # Un archivo por combinación de video y .srt (ruta, fecha y tamaño): si cambia
-    # cualquiera de los dos, se vuelve a procesar
+    # Un archivo por combinación de video y .srt (ruta, fecha y tamaño) y versión del código:
+    # si cambia cualquiera, se vuelve a procesar
     local clave
-    clave="$(stat -c '%n %Y %s' "$(readlink -f "$1")" "$(readlink -f "$2")" | sha1sum | cut -c1-12)"
+    clave="$({ echo "$version_cache"; stat -c '%n %Y %s' "$(readlink -f "$1")" "$(readlink -f "$2")"; } | sha1sum | cut -c1-12)"
     echo "$cache/$(basename "${1%.*}")-$clave"
 }
 

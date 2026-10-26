@@ -15,6 +15,7 @@ Notas para trabajar en el código. Qué hace la herramienta y por qué está dis
 
 - Actualiza juntos el `--help` (`audiotrans/sh/audiotrans`, `audiotrans/sh/practice` y `audiotrans/texto.py`), `audiotrans/man/audiotrans.1` y el README. Comprueba el manual con `man -l audiotrans/man/audiotrans.1` y `groff -k -man -ww -z` (sin avisos, como en CI).
 - Una opción o un alias nuevo también va en `audiotrans/alias.sh` y en `PAGINAS` de `instalar.py` (las páginas `.so` del manual).
+- Si cambia lo que producen `sincronizar.py` o `alinear.py`, sube `version_cache` en `audiotrans/sh/practice`; si no, se sigue usando la caché vieja (la clave solo depende del video y del `.srt`).
 - Escribe en español, como el resto: nombres, comentarios y mensajes. La excepción son los comandos, subcomandos y opciones (`practice --prepare`, `--real-time`), que van en inglés para quien no habla español.
 
 ## Cómo probar
