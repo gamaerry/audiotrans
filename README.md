@@ -78,6 +78,22 @@ audiotrans --setup
 
 Para trabajar en el código, `./instalar.sh` desde el repo hace lo mismo con una instalación editable: lo que cambies se usa al instante. `uv run --extra pruebas pytest` corre las pruebas, que también corren en GitHub Actions.
 
+### Qué se necesita
+
+- **Linux con PipeWire** (`pw-record` y `pactl`), para grabar el micrófono o lo que suena. En macOS o Windows no funciona la grabación.
+- **mpv** y **ffmpeg**, para `practice`. `trans` ([translate-shell](https://github.com/soimort/translate-shell)) y `wl-paste` son opcionales.
+- Se probó en Fedora con un Intel i3-N305 (8 núcleos, sin GPU, 8 GB de RAM). Los parámetros (4 hilos, pausas, ventanas) se midieron ahí; en otro CPU puede convenir otro `AUDIOTRANS_HILOS`.
+
+### Cuándo se usa internet
+
+Whisper siempre corre en la propia máquina. La traducción es local solo entre inglés y español, y solo con los traductores de `--setup`. Va a Google cuando:
+- el par de idiomas es otro (p. ej. francés → español, o el destino de una carpeta `tt….fr-es`);
+- se pide con `-g`;
+- `textrans` no distingue si el texto está en inglés o en español (sin conexión, supone el otro idioma del par y traduce en local);
+- faltan los traductores locales.
+
+Para eso usa `translate.googleapis.com/translate_a/single`, el mismo servicio no oficial que translate-shell: no tiene clave ni garantías y puede dejar de funcionar o limitarse sin aviso. Si falla, intenta con `trans`. `practice` también usa la red para bajar subtítulos de OpenSubtitles cuando el video no trae `.srt`.
+
 ## Descubrimientos
 
 Todo se midió en una laptop con **Intel i3-N305** (8 núcleos eficientes, AVX2 + AVX-VNNI, sin GPU) y 8 GB de RAM. Las mediciones de velocidad usan frases generadas con `espeak-ng`, una voz robótica más difícil de transcribir que una real. La precisión en tiempo real (sección 5) se midió con voz humana real y su transcripción de referencia.
@@ -224,4 +240,4 @@ instalar.sh          instalación editable desde el repo
 El código de este repositorio usa la licencia [MIT](LICENSE). Usa:
 - [Whisper](https://github.com/openai/whisper) (OpenAI, MIT), mediante [faster-whisper](https://github.com/SYSTRAN/faster-whisper) y [CTranslate2](https://github.com/OpenNMT/CTranslate2) (MIT).
 - Modelos [Tatoeba-MT / OPUS-MT](https://github.com/Helsinki-NLP/Tatoeba-Challenge) de Helsinki-NLP (Jörg Tiedemann y colaboradores), con licencia **CC-BY 4.0**. `audiotrans --setup` los descarga y no se redistribuyen aquí. Su licencia y su ficha quedan junto a cada modelo.
-- La API de Google que usa `-g` es el mismo servicio no oficial que usa translate-shell.
+- La API de Google que usa la traducción en línea es el mismo servicio no oficial que usa translate-shell (ver *Cuándo se usa internet*).
