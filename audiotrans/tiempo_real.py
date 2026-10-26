@@ -1,6 +1,6 @@
 """Transcribe y traduce en tiempo real audio PCM (s16, 16 kHz, mono) leído de stdin.
 
-Uso: tiempo_real.py <origen|""> <destino>
+Uso: python -m audiotrans.tiempo_real <origen|""> <destino>
 Cada frase se cierra al detectar una pausa y se traduce mientras se sigue escuchando.
 """
 import os
@@ -11,9 +11,9 @@ import threading
 import numpy as np
 from faster_whisper import WhisperModel
 
-import whisper_corto
-from frases import Segmentador
-from traduccion import precargar, traducir
+from . import whisper_corto
+from .frases import Segmentador
+from .traduccion import precargar, traducir
 
 TASA = 16000
 BLOQUE = TASA // 5    # se lee audio en bloques de 0.2 s

@@ -1,7 +1,7 @@
 """Registro de las dudas de listening: cada línea guardada con su audio, para repasarla después.
 
-Uso: dudas.py guardar <video> <inicio> <fin> <texto> <origen> <destino> [<inicio audio> <fin audio>]
-     dudas.py listar
+Uso: python -m audiotrans.dudas guardar <video> <inicio> <fin> <texto> <origen> <destino> [<inicio audio> <fin audio>]
+     python -m audiotrans.dudas listar
 Las dudas quedan en $AUDIOTRANS_DATOS/dudas/: dudas.jsonl y un .mp3 por línea.
 """
 import datetime
@@ -11,7 +11,7 @@ import re
 import subprocess
 import sys
 
-from traduccion import DATOS, traducir
+from .traduccion import DATOS, traducir
 
 CARPETA = os.path.join(DATOS, "dudas")
 REGISTRO = os.path.join(CARPETA, "dudas.jsonl")

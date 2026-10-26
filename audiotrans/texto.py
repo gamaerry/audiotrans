@@ -5,7 +5,7 @@ Uso: textrans <destino> [-g] [-<origen>] [texto...]   (sin texto, se lee de stdi
 import re
 import sys
 
-import traduccion
+from . import traduccion
 
 AYUDA = """Uso: textrans <destino> [opciones] [texto...]
 
@@ -70,4 +70,9 @@ def main(args):
     return 0
 
 
-sys.exit(main(sys.argv[1:]))
+def principal():
+    sys.exit(main(sys.argv[1:]))
+
+
+if __name__ == "__main__":
+    principal()

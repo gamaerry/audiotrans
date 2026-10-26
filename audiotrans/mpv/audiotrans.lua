@@ -10,7 +10,7 @@ local mp = require "mp"
 local utils = require "mp.utils"
 local options = require "mp.options"
 
-local opts = { srt = "", json = "", python = "", lib = "", textrans = "", destino = "es", origen = "en" }
+local opts = { srt = "", json = "", python = "", destino = "es", origen = "en" }
 options.read_options(opts, "audiotrans")
 
 -- Cada línea del .srt tiene su propio error de tiempo, aunque esté sincronizada. Medido con
@@ -61,7 +61,7 @@ local function cargar_srt(ruta)
 end
 
 local function cargar_json(ruta)
-    -- Generado por lib/alinear.py (practice --prepare)
+    -- Generado por audiotrans/alinear.py (practice --prepare)
     local f = io.open(ruta, "r")
     if not f then return false end
     local datos = utils.parse_json(f:read("*a"))
@@ -177,7 +177,7 @@ local function mostrar_traduccion()
     dibujar()
     mp.command_native_async({
         name = "subprocess", capture_stdout = true, playback_only = false,
-        args = { opts.textrans, opts.destino, "-" .. opts.origen, (lineas[i].texto:gsub("\n", " ")) },
+        args = { opts.python, "-m", "audiotrans.texto", opts.destino, "-" .. opts.origen, (lineas[i].texto:gsub("\n", " ")) },
     }, function(ok, r)
         if foco ~= i or not mostrado.original then return end  -- ya se cambió de línea
         mostrado.traduccion = (ok and r.status == 0) and r.stdout:gsub("%s+$", "") or "(no se pudo traducir)"
@@ -192,7 +192,7 @@ local function guardar_duda()
     local antes, despues = margenes(l)
     mp.command_native_async({
         name = "subprocess", capture_stdout = true, capture_stderr = true, playback_only = false,
-        args = { opts.python, utils.join_path(opts.lib, "dudas.py"), "guardar",
+        args = { opts.python, "-m", "audiotrans.dudas", "guardar",
                  mp.get_property("path"), tostring(l.inicio + retraso()), tostring(l.fin + retraso()),
                  l.texto, opts.origen, opts.destino,
                  tostring(l.inicio + retraso() - antes), tostring(l.fin + retraso() + despues) },

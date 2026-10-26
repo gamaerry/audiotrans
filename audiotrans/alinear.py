@@ -1,6 +1,6 @@
 """Ubica cada línea de un .srt ya sincronizado en el audio, palabra por palabra, con Whisper.
 
-Uso: alinear.py <video> <srt sincronizado> <salida.json> <salida.srt> [idioma]
+Uso: python -m audiotrans.alinear <video> <srt sincronizado> <salida.json> <salida.srt> [idioma]
 
 Aun sincronizado por tramos, cada línea del .srt tiene su propio error (hasta ~1 s), así
 que practice usa márgenes amplios al repetir. Aquí se transcribe el episodio entero con
@@ -20,7 +20,7 @@ import unicodedata
 import numpy as np
 from faster_whisper import WhisperModel
 
-from sincronizar import formato, leer_srt
+from .sincronizar import formato, leer_srt
 
 BUSQUEDA = 3.0  # s alrededor de la línea en los que se buscan sus palabras
 

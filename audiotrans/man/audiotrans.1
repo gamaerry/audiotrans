@@ -10,6 +10,8 @@ audiotrans, textrans, practice, es, en, cbes, cben, pses, psen, mes, men, ses, s
 .RB [ \-\fIorigen\fR ]
 .I destino
 .br
+.B audiotrans \-\-setup
+.br
 .B mes
 |
 .B men
@@ -219,6 +221,12 @@ servicio de Google que usa \fBtrans\fR (unos 0.1 s, contra 1 a 12 s de
 .TP
 .BR \-h ", " \-\-help
 Mostrar la ayuda breve.
+.TP
+.B \-\-setup
+Descargar los traductores locales \fIen\-es\fR y \fIes\-en\fR (~580 MB de
+descarga, quedan en 164 MB) e instalar este manual en
+\fI~/.local/share/man\fR. Se puede volver a correr: solo hace lo que falte. Sin
+los traductores, todo se traduce con Google, y se avisa.
 .SH ATAJOS
 Definidos en \fI~/.bash_aliases\fR, en el bloque «Traductores»:
 .TP
@@ -262,8 +270,8 @@ i3\-N305 (8 núcleos eficientes en 2 bloques de 4) más hilos fueron más lentos
 en otros CPU conviene probar.
 .TP
 .B AUDIOTRANS_DATOS
-Directorio del entorno de Python y los modelos de traducción (por defecto
-\fI~/.local/share/audiotrans\fR).
+Directorio de los traductores locales, las dudas y la clave de OpenSubtitles
+(por defecto \fI~/.local/share/audiotrans\fR).
 .SH ARCHIVOS
 .TP
 .I ~/.cache/audiotrans/ultimo.wav
@@ -279,9 +287,9 @@ Traductores locales \fIen\-es\fR y \fIes\-en\fR (OPUS\-MT convertidos a
 CTranslate2 en int8, 82 MB cada uno). Para agregar otro par basta con crear
 \fImodelos/\fRorigen\fI\-\fRdestino con el mismo formato.
 .TP
-.IR ~/.local/bin/audiotrans ", " ~/.local/bin/textrans
-Enlaces a los comandos en \fIbin/\fR del repositorio, que los instala
-\fIinstalar.sh\fR. El código de Python está en \fIlib/\fR del repositorio:
+.IR ~/.local/bin/audiotrans ", " ~/.local/bin/textrans ", " ~/.local/bin/practice
+Comandos que instala \fBuv tool install\fR, con su propio Python 3.12 (en
+\fI$(uv tool dir)/audiotrans\fR). El código está en el paquete \fIaudiotrans\fR:
 \fItranscribir.py\fR para una sola grabación, \fItiempo_real.py\fR para
 \fB\-r\fR, \fIwhisper_corto.py\fR con la ventana ajustada, \fItexto.py\fR para
 \fBtextrans\fR y \fItraduccion.py\fR, que decide entre el modelo local y Google.
@@ -301,9 +309,6 @@ Clave de la API de OpenSubtitles para bajar subtítulos, como
 \fBapi_key=\fR\fIclave\fR (se crea en https://www.opensubtitles.com/en/consumers).
 Si la cuota sin sesión no alcanza, se agregan \fBusuario=\fR y \fBcontrasena=\fR.
 También se puede pasar en la variable \fBOPENSUBTITLES_API_KEY\fR.
-.TP
-.I ~/.local/share/audiotrans/venv/
-Entorno de Python 3.12 con faster\-whisper, CTranslate2 y SentencePiece.
 .SH EJEMPLOS
 .TP
 .B mes

@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-# Traduce texto: inglés↔español en local (OPUS-MT) y lo demás con Google. Ver: textrans --help
-lib="$(dirname "$(readlink -f "$0")")/../lib"
-export AUDIOTRANS_DATOS="${AUDIOTRANS_DATOS:-$HOME/.local/share/audiotrans}"
-exec "$AUDIOTRANS_DATOS/venv/bin/python" "$lib/texto.py" "$@"

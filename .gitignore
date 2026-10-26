@@ -5,3 +5,6 @@ __pycache__/
 modelos/
 venv/
 out/
+.venv/
+dist/
+uv.lock

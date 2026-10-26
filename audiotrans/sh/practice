@@ -2,10 +2,9 @@
 # Abre un video en mpv para practicar listening: subtítulos ocultos y consulta línea por línea.
 set -euo pipefail
 
-lib="$(dirname "$(readlink -f "$0")")/../lib"
-mpv_dir="$(dirname "$(readlink -f "$0")")/../mpv"
+lua="$(dirname "$(readlink -f "$0")")/../mpv/audiotrans.lua"
 export AUDIOTRANS_DATOS="${AUDIOTRANS_DATOS:-$HOME/.local/share/audiotrans}"
-python="$AUDIOTRANS_DATOS/venv/bin/python"
+python="${AUDIOTRANS_PYTHON:-python3}"  # lo pasa el punto de entrada (lanzar.py)
 cache="$HOME/.cache/audiotrans/sincronizados"
 extensiones_video='mp4|mkv|webm|avi|mov|m4v|mpg|mpeg|ts|wmv|flv|ogv'
 
@@ -67,7 +66,7 @@ sincronizar() {
     [[ -f "$base.srt" ]] && return 0
     mkdir -p "$cache"
     echo "Sincronizando los subtítulos con el audio (~15 s)..."
-    if "$python" "$lib/sincronizar.py" "$video" "$srt" "$base.srt.tmp" 2>/dev/null \
+    if "$python" -m audiotrans.sincronizar "$video" "$srt" "$base.srt.tmp" 2>/dev/null \
         | awk '{v=$3+0; if (NR==1||v<a) a=v; if (NR==1||v>b) b=v} END {printf "  listo: los subtítulos se movieron entre %+.2f y %+.2f s según el tramo\n", a, b}'; then
         mv "$base.srt.tmp" "$base.srt"
     else
@@ -108,7 +107,7 @@ descargar_srt() {
         return 1
     fi
     echo "Buscando los subtítulos en OpenSubtitles..."
-    if "$python" "$lib/subtitulos.py" "$video" "$srt.tmp" "$imdb" "$original"; then
+    if "$python" -m audiotrans.subtitulos "$video" "$srt.tmp" "$imdb" "$original"; then
         mv "$srt.tmp" "$srt"
     else
         rm -f "$srt.tmp"
@@ -146,7 +145,7 @@ preparar() {
         sincronizar "$video" "$srt" "$base" || { echo "  no se pudo sincronizar" >&2; continue; }
         echo "  ubicando cada línea en el audio con Whisper (~6 min)..."
         inicio=$SECONDS
-        if nice -n 19 "$python" "$lib/alinear.py" "$video" "$base.srt" "$base.json.tmp" "$base.exacto.srt.tmp" "$original" 2> >(grep --line-buffered -v -i warn >&2); then
+        if nice -n 19 "$python" -m audiotrans.alinear "$video" "$base.srt" "$base.json.tmp" "$base.exacto.srt.tmp" "$original" 2> >(grep --line-buffered -v -i warn >&2); then
             mv "$base.exacto.srt.tmp" "$base.exacto.srt"
             mv "$base.json.tmp" "$base.json"
             echo "  listo en $(( (SECONDS - inicio) / 60 )) min"
@@ -189,7 +188,7 @@ print(f"{round(100 * exactas / max(len(lineas), 1))} % de las líneas exactas")'
 
 video="" srt="" destino="" sincronizar=true
 case "${1:-}" in
-    saved) exec "$python" "$lib/dudas.py" listar ;;
+    saved) exec "$python" -m audiotrans.dudas listar ;;
     --prepare) shift; [[ $# -gt 0 ]] || { ayuda >&2; exit 2; }; preparar "$@"; exit 0 ;;
     --status) shift; estado "$@"; exit 0 ;;
 esac
@@ -224,11 +223,11 @@ if $sincronizar; then
 fi
 
 # Las comas separan opciones en script-opts, así que las rutas no deben tenerlas
-for ruta in "$srt" "$json" "$lib" "$python"; do
+for ruta in "$srt" "$json" "$python"; do
     [[ "$ruta" != *,* ]] || { echo "practice: la ruta no puede tener comas: $ruta" >&2; exit 2; }
 done
 
 exec mpv --sub-file="$srt" --sub-visibility=no \
-    --script="$mpv_dir/audiotrans.lua" \
-    --script-opts="audiotrans-srt=$(readlink -f "$srt"),audiotrans-json=${json:+$(readlink -f "$json")},audiotrans-python=$python,audiotrans-lib=$(readlink -f "$lib"),audiotrans-textrans=$(readlink -f "$lib/../bin/textrans"),audiotrans-origen=$original,audiotrans-destino=$destino" \
+    --script="$lua" \
+    --script-opts="audiotrans-srt=$(readlink -f "$srt"),audiotrans-json=${json:+$(readlink -f "$json")},audiotrans-python=$python,audiotrans-origen=$original,audiotrans-destino=$destino" \
     "$video"

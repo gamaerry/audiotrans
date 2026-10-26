@@ -1,6 +1,6 @@
 """Descarga de OpenSubtitles los subtítulos de un video, para practicar cuando no trae .srt.
 
-Uso: subtitulos.py <video> <salida.srt> <IMDb ID> [idioma]
+Uso: python -m audiotrans.subtitulos <video> <salida.srt> <IMDb ID> [idioma]
 El IMDb ID es el de la serie o la película (practice lo toma de un archivo tt<número> en la
 carpeta del video). Si el nombre del video tiene temporada y episodio (s1-e3, S01E03, 1x03), es
 un episodio de esa serie; si no, la película. Busca primero por el hash del archivo (el mismo
@@ -19,7 +19,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
-from traduccion import DATOS
+from .traduccion import DATOS
 
 API = "https://api.opensubtitles.com/api/v1"
 AGENTE = "audiotrans v1.0"  # OpenSubtitles rechaza peticiones sin User-Agent propio
@@ -170,7 +170,7 @@ def descargar(video, salida, imdb, idioma="en"):
         print(f"  {describir(elegidos[0])}", file=sys.stderr)
         quedan = bajar(elegidos[0], salida, config, token)
     else:
-        import sincronizar  # numpy y el VAD solo hacen falta para comparar
+        from . import sincronizar  # numpy y el VAD solo hacen falta para comparar
 
         print(f"  comparando {len(elegidos)} versiones con el audio...", file=sys.stderr)
         voz = sincronizar.senal_voz(video)

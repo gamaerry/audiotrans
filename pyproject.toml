@@ -1,0 +1,27 @@
+[project]
+name = "audiotrans"
+version = "1.0.0"
+description = "Traduce lo que se escucha en el micrófono o en la computadora, y ayuda a practicar listening con series"
+readme = "README.md"
+license = "MIT"
+# faster-whisper no tiene paquetes para Python 3.13 o posterior
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "faster-whisper==1.2.1",
+    "ctranslate2==4.8.3",
+    # PyAV 16+ rompe faster-whisper 1.2.1 (av.open ya no acepta metadata_errors)
+    "av==15.1.0",
+    "sentencepiece==0.2.2",
+]
+
+[project.scripts]
+audiotrans = "audiotrans.lanzar:audiotrans"
+practice = "audiotrans.lanzar:practice"
+textrans = "audiotrans.texto:principal"
+
+[project.urls]
+Repository = "https://github.com/gamaerry/audiotrans"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

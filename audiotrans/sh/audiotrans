@@ -2,16 +2,16 @@
 # Graba audio (micrófono o lo que suena en el sistema), lo transcribe con Whisper y lo traduce.
 set -euo pipefail
 
-# Código junto a este script (resolviendo enlaces); venv y modelos en el directorio de datos
-lib="$(dirname "$(readlink -f "$0")")/../lib"
+# El Python del paquete lo pasa el punto de entrada (lanzar.py); los traductores van en el directorio de datos
 export AUDIOTRANS_DATOS="${AUDIOTRANS_DATOS:-$HOME/.local/share/audiotrans}"
-python="$AUDIOTRANS_DATOS/venv/bin/python"
+python="${AUDIOTRANS_PYTHON:-python3}"
 cache="$HOME/.cache/audiotrans"
 wav="$cache/ultimo.wav"
 
 ayuda() {
     cat <<'EOF'
 Uso: audiotrans [opciones] <destino>
+     audiotrans --setup
 
 Graba audio hasta presionar Enter, lo transcribe con Whisper y traduce el
 texto al idioma <destino>. Inglés↔español se traduce en local (OPUS-MT, sin
@@ -32,6 +32,9 @@ Opciones:
   -g, --google   traducir con Google aunque haya modelo local (entiende mejor
                  modismos y jerga, p. ej. "la neta", pero necesita internet)
   -h, --help     mostrar esta ayuda
+  --setup        descargar los traductores locales en-es y es-en (~580 MB de
+                 descarga; quedan en 164 MB) e instalar el manual. Sin ellos,
+                 todo se traduce con Google
 
 Atajos:
   es/en      traducir texto al español/inglés (textrans; -g para jerga)
@@ -53,14 +56,15 @@ Entorno:
                     tiny/base: menos RAM y más rápido; medium: un poco más
                     preciso pero ~3 veces más lento y con 2.5 GB de RAM
   AUDIOTRANS_HILOS  hilos de CPU para Whisper (por defecto: 4)
-  AUDIOTRANS_DATOS  directorio del venv y los modelos
+  AUDIOTRANS_DATOS  directorio de los traductores, las dudas y la clave de
+                    OpenSubtitles
                     (por defecto: ~/.local/share/audiotrans)
 
 Archivos:
   ~/.cache/audiotrans/ultimo.wav  última grabación (se sobrescribe cada vez)
   ~/.cache/huggingface/hub/       modelos descargados (small ≈ 460 MB)
-  ~/.local/share/audiotrans/venv/     entorno de Python (cambia con AUDIOTRANS_DATOS)
-  ~/.local/share/audiotrans/modelos/  traductores locales en-es y es-en (164 MB)
+  ~/.local/share/audiotrans/modelos/  traductores locales en-es y es-en (164 MB;
+                                      cambia con AUDIOTRANS_DATOS)
 
 Más detalles: man audiotrans
 EOF
@@ -70,6 +74,7 @@ destino="" origen="" bucle=false sistema=false real=false rapido=false preciso=f
 for arg in "$@"; do
     case "$arg" in
         -h|--help) ayuda; exit 0 ;;
+        --setup) exec "$python" -m audiotrans.instalar ;;
         -l|--loop) bucle=true ;;
         -s|--system) sistema=true ;;
         -r|--real-time) real=true ;;
@@ -107,7 +112,7 @@ if $sistema; then
 fi
 
 if $real; then
-    "${grabar[@]}" --raw - | exec "$python" "$lib/tiempo_real.py" "$origen" "$destino" || true
+    "${grabar[@]}" --raw - | exec "$python" -m audiotrans.tiempo_real "$origen" "$destino" || true
     exit 0
 fi
 
@@ -121,7 +126,7 @@ while true; do
     sleep 0.6  # no cortar la última palabra al presionar Enter
     kill -INT "$pid"; wait "$pid" 2>/dev/null || true
 
-    "$python" "$lib/transcribir.py" "$wav" "$origen" "$destino" 2>/dev/null || true
+    "$python" -m audiotrans.transcribir "$wav" "$origen" "$destino" 2>/dev/null || true
 
     $bucle || break
 done

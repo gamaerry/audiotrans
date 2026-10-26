@@ -6,10 +6,10 @@ Uso: simular.py <carpeta de preparar.py> '<configuraciones JSON>' '<variantes>'
 Usa el mismo Segmentador y whisper_corto que el modo -r, pero sin esperar en tiempo real.
 """
 import glob, os, re, sys, time, json
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "lib"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 import numpy as np
-import whisper_corto
-from frases import Segmentador
+from audiotrans import whisper_corto
+from audiotrans.frases import Segmentador
 from faster_whisper import WhisperModel
 
 FLUJOS = sys.argv[1]

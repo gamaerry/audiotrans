@@ -1,6 +1,6 @@
 """Sincroniza un .srt con el audio del video, por tramos.
 
-Uso: sincronizar.py <video> <srt> <salida.srt>
+Uso: python -m audiotrans.sincronizar <video> <srt> <salida.srt>
 
 Un solo desplazamiento no basta: si la versión del video tiene un corte o una pausa
 distinta, el desfase cambia a lo largo del episodio (en White Collar 1x01 iba de -1.3 s

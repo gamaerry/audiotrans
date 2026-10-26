@@ -69,21 +69,14 @@ Opciones de los comandos de audio (`audiotrans`):
 
 ## Instalación
 
-Requiere Linux con PipeWire, [uv](https://docs.astral.sh/uv/) y unos 1.2 GB de disco: venv, Whisper `small` y los dos traductores (`base`, con `-f`, unos 140 MB más). `trans` ([translate-shell](https://github.com/soimort/translate-shell)) y `wl-paste` son opcionales; `practice` necesita [mpv](https://mpv.io/) y `ffmpeg`.
-
 ```bash
-git clone https://github.com/gamaerry/audiotrans.git
-cd audiotrans
-./instalar.sh
-echo "source $PWD/alias.sh" >> ~/.bashrc
+uv tool install git+https://github.com/gamaerry/audiotrans.git
+audiotrans --setup
 ```
 
-`instalar.sh` hace lo siguiente:
-1. Crea un venv con Python 3.12 en `~/.local/share/audiotrans/venv`. Usa 3.12 porque faster-whisper no tiene paquetes para 3.13 o posterior.
-2. Descarga los modelos OPUS-MT y los convierte a CTranslate2 en int8.
-3. Enlaza los comandos en `~/.local/bin` y el manual en `~/.local/share/man`.
+[uv](https://docs.astral.sh/uv/) instala los comandos `audiotrans`, `textrans` y `practice` en `~/.local/bin`, con su propio Python 3.12 (faster-whisper no tiene paquetes para 3.13 o posterior). `audiotrans --setup` descarga los dos traductores locales (~580 MB, que quedan en 164 MB) y los convierte a CTranslate2 en int8, instala el manual en `~/.local/share/man` y dice qué línea agregar a `~/.bashrc` para los alias. Sin `--setup` todo funciona, pero la traducción va a Google (y lo avisa). Whisper `small` (~460 MB) se descarga la primera vez que se usa; en total son unos 1.2 GB de disco (`base`, con `-f`, unos 140 MB más).
 
-Como son enlaces, lo que cambies en el repo se usa al instante.
+Para trabajar en el código, `./instalar.sh` desde el repo hace lo mismo con una instalación editable: lo que cambies se usa al instante.
 
 ## Descubrimientos
 
@@ -91,7 +84,7 @@ Todo se midió en una laptop con **Intel i3-N305** (8 núcleos eficientes, AVX2 
 
 ### 1. Whisper desperdicia el 80 % del tiempo en relleno
 
-faster-whisper rellena todo audio hasta 30 s, y el codificador, que es la parte cara en CPU, procesa esos 30 s aunque la frase dure 3. [`lib/whisper_corto.py`](lib/whisper_corto.py) llama directamente a CTranslate2 con una ventana del tamaño de la frase más 1 s:
+faster-whisper rellena todo audio hasta 30 s, y el codificador, que es la parte cara en CPU, procesa esos 30 s aunque la frase dure 3. [`audiotrans/whisper_corto.py`](audiotrans/whisper_corto.py) llama directamente a CTranslate2 con una ventana del tamaño de la frase más 1 s:
 
 | Modelo | Ventana de 30 s | Ventana ajustada |
 |---|---|---|
@@ -150,7 +143,7 @@ Whisper acepta el texto anterior como pista (`<|startofprev|>`). Eso le da el te
 
 ### 6. Sincronizar subtítulos por tramos
 
-Los `.srt` descargados suelen ser de otra versión del video. En White Collar 1x01, el subtítulo aparecía ~1.25 s antes que la voz, así que repetir una línea la cortaba antes de que el actor terminara. [`lib/sincronizar.py`](lib/sincronizar.py) marca con el VAD dónde hay voz y, en ventanas de 5 min cada minuto, busca el desplazamiento que mejor encima los subtítulos sobre la voz. Cada línea toma el de su zona, de modo que también se corrigen desfases que cambian a lo largo del episodio. Medido con las marcas por palabra de Whisper en 8 zonas ([`pruebas/desfase_srt.py`](pruebas/desfase_srt.py)):
+Los `.srt` descargados suelen ser de otra versión del video. En White Collar 1x01, el subtítulo aparecía ~1.25 s antes que la voz, así que repetir una línea la cortaba antes de que el actor terminara. [`audiotrans/sincronizar.py`](audiotrans/sincronizar.py) marca con el VAD dónde hay voz y, en ventanas de 5 min cada minuto, busca el desplazamiento que mejor encima los subtítulos sobre la voz. Cada línea toma el de su zona, de modo que también se corrigen desfases que cambian a lo largo del episodio. Medido con las marcas por palabra de Whisper en 8 zonas ([`pruebas/desfase_srt.py`](pruebas/desfase_srt.py)):
 
 | | desfase |
 |---|---|
@@ -172,7 +165,7 @@ Como las versiones de TV tienen otros cortes, cuando OpenSubtitles no tiene el `
 
 Aun sincronizado, cada línea tiene su propio error de tiempo, porque quien hace los subtítulos no los ajusta al milisegundo. Por eso `r` empieza 0.9 s antes y termina 0.5 s después: con el inicio de cada palabra medido en 120 líneas, 0.9 s cubre el 95 % de los inicios (0.3 s solo el 84 %), y 0.5 s el 100 % de los finales. Ajustar cada inicio a donde el VAD detecta voz lo empeoró (de 14 % a 17–24 % de líneas que empezaban tarde), porque con música y efectos el VAD no es preciso al décimo de segundo.
 
-Con `practice --prepare`, [`lib/alinear.py`](lib/alinear.py) transcribe el episodio entero con marcas por palabra y ubica la primera y la última palabra de cada línea cerca de donde dice el `.srt`. En 1x01 encontró el 75 % de las líneas, en 7 min 53 s. Las que faltan son canciones, frases muy cortas y frases que Whisper oyó distinto. Contra una medición aparte, 0.5 s de margen cubre el 95 % de esos inicios y 0.4 s el 100 % de los finales, así que esas líneas se repiten casi sin oír la anterior.
+Con `practice --prepare`, [`audiotrans/alinear.py`](audiotrans/alinear.py) transcribe el episodio entero con marcas por palabra y ubica la primera y la última palabra de cada línea cerca de donde dice el `.srt`. En 1x01 encontró el 75 % de las líneas, en 7 min 53 s. Las que faltan son canciones, frases muy cortas y frases que Whisper oyó distinto. Contra una medición aparte, 0.5 s de margen cubre el 95 % de esos inicios y 0.4 s el 100 % de los finales, así que esas líneas se repiten casi sin oír la anterior.
 
 También probé corregir las líneas sin tiempo exacto con el desfase de sus vecinas exactas, y no ayudó: en 1x01 la mediana del error bajó de 0.18 a 0.16 s, pero las que empezaban tarde subieron de 6.4 % a 7.3 %. El error de cada línea es de quien hizo los subtítulos, y no se comparte con las vecinas.
 
@@ -203,29 +196,32 @@ Una lección: medir con el inicio de los segmentos de Whisper, en lugar de por p
 ## Estructura
 
 ```
-bin/audiotrans      graba (micrófono o sistema) y coordina todo
-bin/textrans        traduce texto
-bin/practice        abre un video en mpv para practicar listening
-mpv/audiotrans.lua  teclas r/R/t/y/d dentro de mpv
-lib/dudas.py        guarda las dudas con su fragmento de audio
-lib/sincronizar.py  sincroniza el .srt con el audio por tramos
-lib/subtitulos.py   baja el .srt de OpenSubtitles si falta
-lib/alinear.py      ubica cada línea palabra por palabra (practice --prepare)
-lib/whisper_corto.py   Whisper con ventana ajustada (descubrimientos 1 y 2)
-lib/tiempo_real.py     modo -r: contexto entre frases y traducción en paralelo
-lib/frases.py          corta el audio continuo en frases con el VAD
-lib/transcribir.py     modo con Enter
-lib/traduccion.py      local (OPUS-MT) primero, luego Google y luego trans
-lib/texto.py           detección en/es por palabras frecuentes, para textrans
-man/audiotrans.1       manual
-pruebas/               medición de precisión con voz real (Mini LibriSpeech)
-alias.sh            los alias
-instalar.sh         instalación
+audiotrans/
+  sh/audiotrans      graba (micrófono o sistema) y coordina todo
+  sh/practice        abre un video en mpv para practicar listening
+  lanzar.py          comandos audiotrans y practice: ejecutan sh/ con el Python del paquete
+  texto.py           textrans: detección en/es por palabras frecuentes
+  traduccion.py      local (OPUS-MT) primero, luego Google y luego trans
+  instalar.py        audiotrans --setup: traductores y manual
+  mpv/audiotrans.lua teclas r/R/t/y/d dentro de mpv
+  dudas.py           guarda las dudas con su fragmento de audio
+  sincronizar.py     sincroniza el .srt con el audio por tramos
+  subtitulos.py      baja el .srt de OpenSubtitles si falta
+  alinear.py         ubica cada línea palabra por palabra (practice --prepare)
+  whisper_corto.py   Whisper con ventana ajustada (descubrimientos 1 y 2)
+  tiempo_real.py     modo -r: contexto entre frases y traducción en paralelo
+  frases.py          corta el audio continuo en frases con el VAD
+  transcribir.py     modo con Enter
+  man/audiotrans.1   manual
+  alias.sh           los alias
+pruebas/             medición de precisión con voz real (Mini LibriSpeech)
+pyproject.toml       paquete y dependencias
+instalar.sh          instalación editable desde el repo
 ```
 
 ## Créditos y licencias
 
 El código de este repositorio usa la licencia [MIT](LICENSE). Usa:
 - [Whisper](https://github.com/openai/whisper) (OpenAI, MIT), mediante [faster-whisper](https://github.com/SYSTRAN/faster-whisper) y [CTranslate2](https://github.com/OpenNMT/CTranslate2) (MIT).
-- Modelos [Tatoeba-MT / OPUS-MT](https://github.com/Helsinki-NLP/Tatoeba-Challenge) de Helsinki-NLP (Jörg Tiedemann y colaboradores), con licencia **CC-BY 4.0**. `instalar.sh` los descarga y no se redistribuyen aquí. Su licencia y su ficha quedan junto a cada modelo.
+- Modelos [Tatoeba-MT / OPUS-MT](https://github.com/Helsinki-NLP/Tatoeba-Challenge) de Helsinki-NLP (Jörg Tiedemann y colaboradores), con licencia **CC-BY 4.0**. `audiotrans --setup` los descarga y no se redistribuyen aquí. Su licencia y su ficha quedan junto a cada modelo.
 - La API de Google que usa `-g` es el mismo servicio no oficial que usa translate-shell.

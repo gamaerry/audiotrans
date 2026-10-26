@@ -1,5 +1,0 @@
-faster-whisper==1.2.1
-ctranslate2==4.8.3
-# PyAV 16+ rompe faster-whisper 1.2.1 (av.open ya no acepta metadata_errors)
-av==15.1.0
-sentencepiece==0.2.2

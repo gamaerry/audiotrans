@@ -1,6 +1,6 @@
 """Transcribe una grabación y muestra el texto con su traducción.
 
-Uso: transcribir.py <wav> <origen|""> <destino>
+Uso: python -m audiotrans.transcribir <wav> <origen|""> <destino>
 """
 import os
 import sys
@@ -9,8 +9,8 @@ import numpy as np
 from faster_whisper import WhisperModel, decode_audio
 from faster_whisper.vad import VadOptions, get_speech_timestamps
 
-import whisper_corto
-from traduccion import traducir
+from . import whisper_corto
+from .traduccion import traducir
 
 wav, origen, destino = sys.argv[1], sys.argv[2] or None, sys.argv[3]
 beam = 5 if os.environ.get("AUDIOTRANS_RAPIDO") == "1" else 10

@@ -3,13 +3,16 @@ import json
 import os
 import re
 import subprocess
+import sys
 import urllib.parse
 import urllib.request
 
 DATOS = os.environ.get("AUDIOTRANS_DATOS") or os.path.expanduser("~/.local/share/audiotrans")
 MODELOS = os.path.join(DATOS, "modelos")
 EN_LINEA = os.environ.get("AUDIOTRANS_EN_LINEA") == "1"
+PARES = ("en-es", "es-en")  # los que audiotrans --setup instala
 _cargados = {}
+_avisado = False
 
 
 def _modelo(par):
@@ -66,6 +69,12 @@ def traducir(texto, origen, destino, supuesto=None):
         return texto
     if not EN_LINEA and hay_local(origen, destino):
         return _local(texto, origen, destino)
+    global _avisado
+    par = f"{origen or supuesto}-{destino}"
+    if not EN_LINEA and par in PARES and not os.path.isdir(os.path.join(MODELOS, par)) and not _avisado:
+        # Sin esto, quien no corrió --setup creería que traduce sin internet
+        print("audiotrans: faltan los traductores locales (audiotrans --setup); uso Google", file=sys.stderr)
+        _avisado = True
     traducido = _google(texto, origen, destino)
     if traducido is None and not origen and hay_local(supuesto, destino):
         traducido = _local(texto, supuesto, destino)

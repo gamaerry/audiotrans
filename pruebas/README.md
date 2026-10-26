@@ -5,7 +5,7 @@ Miden el error por palabra (WER) del modo `-r` con voz humana real y su transcri
 ```bash
 D=$(mktemp -d)
 curl -L https://www.openslr.org/resources/31/dev-clean-2.tar.gz | tar xz -C $D
-PY=~/.local/share/audiotrans/venv/bin/python
+PY=$(uv tool dir)/audiotrans/bin/python
 $PY pruebas/preparar.py $D $D/flujos
 $PY pruebas/simular.py $D/flujos '[
   {"nombre": "normal (-r)",   "pausa": 0.5, "max": 10, "ctx": 1, "ventana": 0},
@@ -19,4 +19,4 @@ Usa toda la CPU: no midas tiempos con la máquina ocupada.
 
 ## Sincronización de subtítulos
 
-`desfase_srt.py video.mp4 original.srt sincronizado.srt` mide, en 8 zonas del episodio, cuánto se adelanta o se atrasa cada `.srt` respecto a la voz. Usa las marcas por palabra de Whisper. Con White Collar 1x01, el original iba −1.2 a −1.4 s, `ffsubsync` (un solo desplazamiento) dejaba −0.1 a −0.33 s, y `lib/sincronizar.py` (por tramos) dejó −0.15 a +0.07 s.
+`desfase_srt.py video.mp4 original.srt sincronizado.srt` mide, en 8 zonas del episodio, cuánto se adelanta o se atrasa cada `.srt` respecto a la voz. Usa las marcas por palabra de Whisper. Con White Collar 1x01, el original iba −1.2 a −1.4 s, `ffsubsync` (un solo desplazamiento) dejaba −0.1 a −0.33 s, y `audiotrans/sincronizar.py` (por tramos) dejó −0.15 a +0.07 s.
