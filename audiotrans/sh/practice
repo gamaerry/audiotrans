@@ -233,7 +233,9 @@ for ruta in "$srt" "$json" "$python"; do
     [[ "$ruta" != *,* ]] || { echo "practice: la ruta no puede tener comas: $ruta" >&2; exit 2; }
 done
 
+# Q guarda la posición para retomar, pero no la velocidad (R deja 0.75) ni si se ven los subtítulos
 exec mpv --sub-file="$srt" --sub-visibility=no \
+    --watch-later-options-remove=speed --watch-later-options-remove=sub-visibility \
     --script="$lua" \
     --script-opts="audiotrans-srt=$(readlink -f "$srt"),audiotrans-json=${json:+$(readlink -f "$json")},audiotrans-python=$python,audiotrans-origen=$original,audiotrans-destino=$destino" \
     "$video"
