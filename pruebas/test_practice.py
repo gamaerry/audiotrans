@@ -77,13 +77,23 @@ def test_status_cuenta_las_traducciones_revisadas(carpeta):
     assert "a.mp4 · 1 traducciones revisadas" in r.stdout
 
 
+def _con_skill(entorno, tmp_path, *carpetas):
+    # Un HOME aparte con la skill en las carpetas dadas (la real puede no estar, como en CI)
+    casa = tmp_path / "casa"
+    for c in carpetas:
+        (casa / c / "traducir-episodio").mkdir(parents=True, exist_ok=True)
+        (casa / c / "traducir-episodio" / "SKILL.md").write_text("---\nname: traducir-episodio\n---\n")
+    return {**entorno, "HOME": str(casa)}
+
+
 @pytest.mark.parametrize("agente, esperado", [
     ("claude", ["--model", "M", "PROMPT"]), ("gemini", ["-m", "M", "-i", "PROMPT"]),
     ("codex", ["-m", "M", "PROMPT"]), ("opencode", ["-m", "M", "--prompt", "PROMPT"]),
     ("grok", ["-m", "M", "PROMPT"]), ("agy", ["--model", "M", "-i", "PROMPT"]),
 ])
-def test_translate_abre_el_agente_con_el_prompt(carpeta, agente, esperado):
+def test_translate_abre_el_agente_con_el_prompt(carpeta, tmp_path, agente, esperado):
     serie, entorno = carpeta
+    entorno = _con_skill(entorno, tmp_path, ".agents/skills", ".claude/skills", ".grok/skills")
     falso = entorno["PATH"].split(":")[0]
     with open(os.path.join(falso, agente), "w") as f:
         f.write('#!/bin/sh\nprintf "[%s]\\n" "$PWD" "$@"\n')
@@ -97,8 +107,9 @@ def test_translate_abre_el_agente_con_el_prompt(carpeta, agente, esperado):
     assert salida[1:] == [prompt if x == "PROMPT" else x for x in esperado]
 
 
-def test_translate_sin_modelo_ni_agente_usa_claude(carpeta):
+def test_translate_sin_modelo_ni_agente_usa_claude(carpeta, tmp_path):
     serie, entorno = carpeta
+    entorno = _con_skill(entorno, tmp_path, ".claude/skills")
     falso = entorno["PATH"].split(":")[0]
     with open(os.path.join(falso, "claude"), "w") as f:
         f.write('#!/bin/sh\nprintf "[%s]\\n" "$@"\n')
@@ -113,3 +124,15 @@ def test_translate_agente_desconocido(carpeta):
     r = practice(serie, entorno, "--translate", "a.mp4", "--agent", "chatgpt")
     assert r.returncode == 2
     assert "agente desconocido" in r.stderr
+
+
+def test_translate_sin_la_skill_no_abre_el_agente(carpeta, tmp_path):
+    serie, entorno = carpeta
+    falso = entorno["PATH"].split(":")[0]
+    with open(os.path.join(falso, "grok"), "w") as f:
+        f.write('#!/bin/sh\necho ABIERTO\n')
+    os.chmod(os.path.join(falso, "grok"), 0o755)
+    # Grok no lee ~/.agents/skills: con la skill solo ahí, falta
+    r = practice(serie, _con_skill(entorno, tmp_path, ".agents/skills"), "--translate", "a.mp4", "--agent", "grok")
+    assert r.returncode == 2
+    assert "audiotrans --setup" in r.stderr and "ABIERTO" not in r.stdout

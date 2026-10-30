@@ -226,8 +226,9 @@ conversación sigue la siguiente, porque una por episodio sale más barata que
 todos en una. \fB\-\-agent\fR elige entre \fBclaude\fR (el de omisión, o el de
 \fBAUDIOTRANS_AGENTE\fR), \fBgemini\fR, \fBcodex\fR, \fBopencode\fR,
 \fBgrok\fR y \fBagy\fR, y \fB\-\-model\fR el modelo, con el nombre que use
-ese agente (en opencode, \fIproveedor\fR/\fImodelo\fR). La skill tiene que estar
-instalada para ese agente.
+ese agente (en opencode, \fIproveedor\fR/\fImodelo\fR). La skill viene con el
+paquete y \fBaudiotrans \-\-setup\fR la enlaza para los agentes; sin ella,
+\fB\-\-translate\fR no abre el agente.
 .PP
 El texto se quita al reanudar la reproducción. \fBpractice saved\fR lista
 las dudas guardadas. Las teclas r, R, t y d reemplazan, solo en esta sesión,
@@ -368,6 +369,14 @@ si alguno cambia o si cambia cómo se procesan. Se pueden borrar.
 .IR video ".srt, " video . destino .tsv
 Subtítulos originales del episodio, junto al video, y sus traducciones
 revisadas (opcional).
+.TP
+.IR ~/.agents/skills/traducir\-episodio ", " ~/.claude/skills/traducir\-episodio ", " ~/.grok/skills/traducir\-episodio
+Enlaces a la skill del paquete que pone \fBaudiotrans \-\-setup\fR: la primera la
+leen Gemini CLI, Codex, opencode y agy; las otras, Claude Code y Grok.
+.TP
+.I ~/.local/share/audiotrans/preferencias\-traduccion.md
+Preferencias del usuario para la skill (opcional): la variante del español,
+palabras que prefiere, cosas que el agente no debe hacer.
 .TP
 .I ~/.local/share/audiotrans/dudas/
 Dudas de \fBpractice\fR: \fIdudas.jsonl\fR (una por línea: episodio, tiempos,

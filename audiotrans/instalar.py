@@ -1,4 +1,4 @@
-"""audiotrans --setup: descarga los traductores locales en-es y es-en e instala el manual.
+"""audiotrans --setup: descarga los traductores locales en-es y es-en, e instala el manual y la skill.
 
 Se puede volver a correr sin problema: solo hace lo que falte. Whisper no se descarga aquí:
 faster-whisper lo baja la primera vez que se usa (small ≈ 460 MB).
@@ -21,6 +21,9 @@ PAQUETE = os.path.dirname(os.path.abspath(__file__))
 MAN1 = os.path.expanduser("~/.local/share/man/man1")
 # Páginas que llevan a audiotrans.1: los comandos y los alias de alias.sh
 PAGINAS = "textrans practice es en cbes cben pses psen mes men ses sen".split()
+SKILL = "traducir-episodio"
+# Gemini CLI, Codex, opencode y agy leen ~/.agents/skills; Claude Code y Grok, solo su carpeta
+AGENTES_APARTE = (".claude", ".grok")
 
 
 def _bajar(url, destino):
@@ -68,10 +71,36 @@ def manual():
     print(f"== Manual en {MAN1} (man audiotrans)")
 
 
+def skill(casa=None):
+    """Enlaza la skill del paquete en ~/.agents/skills (así se actualiza con el paquete) y en las
+    carpetas de los agentes que no leen esa. No toca una skill propia con el mismo nombre."""
+    casa = casa or os.path.expanduser("~")
+    fuente = os.path.join(PAQUETE, "skills", SKILL)
+    comun = os.path.join(casa, ".agents", "skills", SKILL)
+    if os.path.islink(comun):
+        os.remove(comun)  # de otra instalación del paquete: se apunta a la de ahora
+    if os.path.lexists(comun):
+        print(f"== Skill {SKILL}: ya hay una en {comun} que no es de audiotrans; no la toco")
+    else:
+        os.makedirs(os.path.dirname(comun), exist_ok=True)
+        os.symlink(fuente, comun)
+    for agente in AGENTES_APARTE:
+        if not os.path.isdir(os.path.join(casa, agente)):
+            continue  # ese agente no está instalado
+        enlace = os.path.join(casa, agente, "skills", SKILL)
+        if os.path.islink(enlace) and not os.path.exists(enlace):
+            os.remove(enlace)  # enlace roto
+        if not os.path.lexists(enlace):
+            os.makedirs(os.path.dirname(enlace), exist_ok=True)
+            os.symlink(os.path.join("..", "..", ".agents", "skills", SKILL), enlace)
+    print(f"== Skill {SKILL} para los agentes (practice --translate)")
+
+
 def main():
     for par, origen in OPUS.items():
         traductor(par, origen)
     manual()
+    skill()
     print("Listo. Para los alias (es, en, mes, ses, cbes, pses...), agrega a ~/.bashrc:")
     print(f"    source {os.path.join(PAQUETE, 'alias.sh')}")
 

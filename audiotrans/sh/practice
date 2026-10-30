@@ -198,7 +198,7 @@ lanzar_agente() {
 traducir() {
     # Un agente con la skill traducir-episodio por video, uno tras otro: una conversación por
     # episodio sale más barata que todos en una, porque cada llamada reenvía la conversación
-    local agente="${AUDIOTRANS_AGENTE:-claude}" modelo="" args=() video srt carpeta prompt lista
+    local agente="${AUDIOTRANS_AGENTE:-claude}" modelo="" args=() video srt carpeta prompt lista skills
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --agent|--model)
@@ -211,6 +211,10 @@ traducir() {
     done
     [[ "$agente" =~ ^($agentes)$ ]] || { echo "practice: agente desconocido: $agente (son ${agentes//|/, })" >&2; exit 2; }
     command -v "$agente" >/dev/null || { echo "practice: no encuentro el comando $agente" >&2; exit 2; }
+    # Claude Code y Grok solo leen su carpeta; los demás, ~/.agents/skills (audiotrans --setup las enlaza)
+    case "$agente" in claude) skills=~/.claude/skills ;; grok) skills=~/.grok/skills ;; *) skills=~/.agents/skills ;; esac
+    [[ -f "$skills/traducir-episodio/SKILL.md" ]] \
+        || { echo "practice: falta la skill traducir-episodio para $agente (en $skills); instálala con: audiotrans --setup" >&2; exit 2; }
     [[ ${#args[@]} -gt 0 ]] || { ayuda >&2; exit 2; }
     videos "${args[@]}"
     for video in "${lista[@]}"; do

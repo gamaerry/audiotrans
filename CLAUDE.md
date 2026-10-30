@@ -7,7 +7,7 @@ Notas para trabajar en el código. Qué hace la herramienta y por qué está dis
 - Es un paquete de Python (`audiotrans/`, `pyproject.toml`) que se instala con `uv tool install`; `instalar.sh` lo instala editable desde el repo y corre `audiotrans --setup` (`instalar.py`: traductores y manual).
 - `audiotrans` y `practice` son bash (`audiotrans/sh/`). Sus puntos de entrada (`lanzar.py`) los ejecutan con `AUDIOTRANS_PYTHON` = el Python del paquete, y ellos llaman a los módulos con `"$python" -m audiotrans.<módulo>`; el Lua también (`python -m audiotrans.texto` y `audiotrans.dudas`). `textrans` es Python directo (`texto:principal`).
 - Los módulos se importan entre sí de forma relativa (`from .traduccion import ...`): ya no se pueden correr como `python archivo.py`.
-- Todo lo que no es `.py` (`sh/`, `mpv/`, `man/`, `alias.sh`) va dentro del paquete para que se instale. Una instalación editable no detecta si falta algo: pruébalo con una no editable (abajo).
+- Todo lo que no es `.py` (`sh/`, `mpv/`, `man/`, `skills/`, `alias.sh`) va dentro del paquete para que se instale. Una instalación editable no detecta si falta algo: pruébalo con una no editable (abajo).
 - Datos fuera del repo, en `$AUDIOTRANS_DATOS` (por defecto `~/.local/share/audiotrans`): `modelos/{en-es,es-en}`, `dudas/` y la clave de OpenSubtitles. Nunca van a git.
 - Las opciones viajan del bash a Python por variables de entorno: `AUDIOTRANS_MODEL`, `AUDIOTRANS_RAPIDO`, `AUDIOTRANS_EN_LINEA`, `AUDIOTRANS_HILOS`, `AUDIOTRANS_DATOS`. `AUDIOTRANS_AGENTE` solo lo lee `practice --translate`, que abre la conversación del agente (`lanzar_agente`: cada CLI recibe el prompt inicial y el modelo con banderas distintas; pruébalas con su `--help` al actualizarlos).
 
