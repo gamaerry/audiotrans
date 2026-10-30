@@ -7,6 +7,7 @@
 --   y  mostrar la traducción
 --   d  guardar la línea como duda, con su audio (para repasar en Anki)
 --   c  seguir viendo con los subtítulos de mpv visibles (otra vez c para quitarlos)
+--   q  quitar la repetición o el texto y seguir viendo normal (ya no cierra mpv: eso queda en Q)
 -- Se carga con el comando practice, que le pasa las rutas en script-opts.
 
 local mp = require "mp"
@@ -253,6 +254,13 @@ local function repetir_siguiente()
     repetir((i or 0) + 1)  -- antes del primer diálogo, la siguiente es la primera
 end
 
+local function seguir_normal()
+    -- Sin esto había que esperar a que la repetición terminara y se pausara
+    terminar_repeticion()
+    ocultar()
+    mp.set_property_bool("pause", false)
+end
+
 local function continuar_con_subtitulos()
     -- Solo cambia sub-visibility (la v de mpv) y reanuda: r, t, y y d siguen igual
     local visibles = not (mp.get_property_bool("sub-visibility") or subs_ocultos)
@@ -274,11 +282,12 @@ if cargado then
     mp.add_forced_key_binding("y", "audiotrans-traduccion", mostrar_traduccion)
     mp.add_forced_key_binding("d", "audiotrans-duda", guardar_duda)
     mp.add_forced_key_binding("c", "audiotrans-subtitulos", continuar_con_subtitulos)
+    mp.add_forced_key_binding("q", "audiotrans-seguir", seguir_normal)
     local exactas = 0
     for _, l in ipairs(lineas) do if l.inicio_exacto and l.fin_exacto then exactas = exactas + 1 end end
     local preparado = opts.json ~= "" and string.format(" (%d %% con tiempo exacto)", math.floor(100 * exactas / #lineas)) or ""
     mp.register_event("file-loaded", function()
-        mp.osd_message(#lineas .. " líneas" .. preparado .. " · r repetir · R más lento · e/E anterior/siguiente · t texto · y traducción · d guardar duda · c con subtítulos", 6)
+        mp.osd_message(#lineas .. " líneas" .. preparado .. " · r repetir · R más lento · e/E anterior/siguiente · t texto · y traducción · d guardar duda · c con subtítulos · q seguir normal", 6)
     end)
 else
     mp.msg.warn("audiotrans: no se pudieron leer los subtítulos: " .. (opts.json ~= "" and opts.json or opts.srt))
