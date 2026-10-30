@@ -42,6 +42,7 @@ He didn't say a word, but his eyes told me everything.
 | `y` | muestra la traducción (la revisada del episodio, si la hay) |
 | `d` | guarda la duda: texto, traducción y fragmento de audio |
 | `c` | sigue viendo con los subtítulos visibles (otra vez `c` para quitarlos) |
+| `C` | sigue viendo con los subtítulos y la traducción de cada línea debajo (otra vez `C` para quitarlos) |
 | `q` | quita la repetición o el texto y sigue viendo normal; para salir, `Q` (mpv recuerda dónde ibas) |
 
 Cada serie o película va en su carpeta, con un archivo vacío que dice su ID de [IMDb](https://www.imdb.com/) (está en la dirección, `imdb.com/title/tt1358522/`) y el par de idiomas: el original, que es el que se practica, y al que se traduce. Sin par se usa `en-es`.

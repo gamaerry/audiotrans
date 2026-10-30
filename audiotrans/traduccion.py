@@ -1,4 +1,9 @@
-"""Traducción local con OPUS-MT para los pares instalados en modelos/, y con Google para el resto."""
+"""Traducción local con OPUS-MT para los pares instalados en modelos/, y con Google para el resto.
+
+Uso: python -m audiotrans.traduccion <origen> <destino> < líneas
+Traduce cada renglón de stdin en un solo lote y escribe su traducción en el mismo renglón
+(lo usa mpv/audiotrans.lua para la tecla C de practice).
+"""
 import json
 import os
 import re
@@ -96,3 +101,10 @@ def traducir(texto, origen, destino, supuesto=None):
     if traducido is None and not origen and hay_local(supuesto, destino):
         traducido = _local(texto, supuesto, destino)
     return traducido or "(sin traducción: no hay modelo local ni conexión)"
+
+
+if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        sys.exit(__doc__)
+    for traducido in traducir_lote([l.rstrip("\n") for l in sys.stdin], sys.argv[1], sys.argv[2]):
+        print(" ".join((traducido or "").split()))

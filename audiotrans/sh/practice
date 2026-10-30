@@ -28,6 +28,7 @@ Abre el video en mpv con los subtítulos ocultos. Cuando no entiendas algo:
   y  mostrar la traducción (la revisada de <video>.<destino>.tsv, si la hay)
   d  guardar la línea como duda, con su audio
   c  seguir viendo con los subtítulos (otra vez c para quitarlos)
+  C  seguir viendo con los subtítulos y su traducción (otra vez C para quitarlos)
   q  quitar la repetición o el texto y seguir viendo normal (para salir: Q)
   v  mostrar u ocultar todos los subtítulos (tecla normal de mpv)
   z / x  adelantar o atrasar los subtítulos 0.1 s (normalmente no hace falta)

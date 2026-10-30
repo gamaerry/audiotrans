@@ -7,6 +7,7 @@
 --   y  mostrar la traducción (la revisada del .tsv del episodio, si la hay)
 --   d  guardar la línea como duda, con su audio (para repasar en Anki)
 --   c  seguir viendo con los subtítulos de mpv visibles (otra vez c para quitarlos)
+--   C  seguir viendo con los subtítulos y su traducción debajo (otra vez C para quitarlos)
 --   q  quitar la repetición o el texto y seguir viendo normal (ya no cierra mpv: eso queda en Q)
 -- Se carga con el comando practice, que le pasa las rutas en script-opts.
 
@@ -29,8 +30,9 @@ local MARGEN_INICIO_EXACTO = 0.5
 local MARGEN_FIN_EXACTO = 0.4
 local LENTO = 0.75
 
-local lineas = {}        -- { inicio = s, fin = s, texto = "...", pos, inicio_exacto, fin_exacto, traduccion }
-                         -- (tiempo del .srt; pos: número de bloque en el .srt original)
+local lineas = {}        -- { inicio = s, fin = s, texto = "...", pos, inicio_exacto, fin_exacto, traduccion, automatica }
+                         -- (tiempo del .srt; pos: número de bloque en el .srt original;
+                         -- automatica: la del traductor, pedida en lote por C)
 local foco = nil         -- índice de la línea con la que se está trabajando
 local pausar_en = nil    -- tiempo (del video) en el que pausar al terminar una repetición
 local velocidad = nil    -- velocidad de antes de una repetición lenta, para restaurarla
@@ -38,6 +40,10 @@ local buscando = false   -- mientras llega el salto de una repetición, time-pos
 local overlay = mp.create_osd_overlay("ass-events")
 local mostrado = {}      -- lo que se ve en pantalla: { original = ..., traduccion = ... }
 local subs_ocultos = false  -- dibujar() quitó los subtítulos de mpv para que no se encimen
+local overlay_dobles = mp.create_osd_overlay("ass-events")
+local dobles = false     -- C: cada línea se ve al pasar, con su traducción debajo
+local doble_actual = nil -- índice de la línea dibujada en overlay_dobles
+local pedidas = false    -- ya se pidieron las traducciones automáticas que faltan
 
 local function a_segundos(h, m, s, ms)
     return tonumber(h) * 3600 + tonumber(m) * 60 + tonumber(s) + tonumber(ms) / 1000
@@ -141,21 +147,80 @@ local function escapar_ass(texto)
     return texto:gsub("\\", "\\\\"):gsub("{", "\\{"):gsub("}", "\\}"):gsub("\n", "\\N")
 end
 
-local function dibujar()
+local function linea_actual()
+    -- La que está en pantalla según el .srt (la última que empezó, si se enciman)
+    local t, actual = ahora(), nil
+    for i, l in ipairs(lineas) do
+        if l.inicio > t then break end
+        if t <= l.fin then actual = i end
+    end
+    return actual
+end
+
+local function texto_ass(original, traduccion)
     local partes = {}
-    if mostrado.original then
-        table.insert(partes, "{\\an2\\fs40\\bord2\\1c&HFFFFFF&}" .. escapar_ass(mostrado.original))
+    if original then table.insert(partes, "{\\an2\\fs40\\bord2\\1c&HFFFFFF&}" .. escapar_ass(original)) end
+    if traduccion then table.insert(partes, "{\\an2\\fs34\\bord2\\1c&H66DDFF&}" .. escapar_ass(traduccion)) end
+    return table.concat(partes, "\\N")
+end
+
+local function actualizar_dobles(forzar)
+    -- Mientras t, y o R muestran una línea, no se dibuja encima
+    local i = dobles and not mostrado.original and linea_actual() or nil
+    if i == doble_actual and not forzar then return end
+    doble_actual = i
+    if not i then return overlay_dobles:remove() end
+    local l = lineas[i]
+    overlay_dobles.data = texto_ass(l.texto, l.traduccion or l.automatica or "…")
+    mp.msg.verbose("con traducción: " .. overlay_dobles.data)
+    overlay_dobles:update()
+end
+
+local function pedir_automaticas(indices)
+    -- Un solo proceso traduce el lote (el modelo se carga una vez): en 1x02 completo, ~18 s
+    if #indices == 0 then return end
+    local textos = {}
+    for _, i in ipairs(indices) do table.insert(textos, (lineas[i].texto:gsub("\n", " "))) end
+    mp.command_native_async({
+        name = "subprocess", capture_stdout = true, playback_only = false,
+        stdin_data = table.concat(textos, "\n") .. "\n",
+        args = { opts.python, "-m", "audiotrans.traduccion", opts.origen, opts.destino },
+    }, function(ok, r)
+        if not (ok and r.status == 0) then
+            return mp.osd_message("No se pudieron traducir los subtítulos", 3)
+        end
+        local n = 0
+        for traducida in r.stdout:gmatch("([^\n]*)\n") do
+            n = n + 1
+            if indices[n] and traducida ~= "" then lineas[indices[n]].automatica = traducida end
+        end
+        actualizar_dobles(true)
+    end)
+end
+
+local function traducir_faltantes()
+    -- Primero las próximas 20 (llegan en unos segundos), luego todas las demás
+    if pedidas then return end
+    pedidas = true
+    local desde = linea_reciente() or 1
+    local primeras, resto = {}, {}
+    for i = 1, #lineas do
+        local j = (desde + i - 2) % #lineas + 1
+        if not lineas[j].traduccion then table.insert(#primeras < 20 and primeras or resto, j) end
     end
-    if mostrado.traduccion then
-        table.insert(partes, "{\\an2\\fs34\\bord2\\1c&H66DDFF&}" .. escapar_ass(mostrado.traduccion))
-    end
+    pedir_automaticas(primeras)
+    pedir_automaticas(resto)
+end
+
+local function dibujar()
     if not subs_ocultos and mp.get_property_bool("sub-visibility") then
         mp.set_property_bool("sub-visibility", false)
         subs_ocultos = true
     end
-    overlay.data = table.concat(partes, "\\N")
+    overlay.data = texto_ass(mostrado.original, mostrado.traduccion)
     mp.msg.verbose("en pantalla: " .. overlay.data)
     overlay:update()
+    actualizar_dobles()
 end
 
 local function ocultar()
@@ -166,6 +231,7 @@ local function ocultar()
         mp.set_property_bool("sub-visibility", true)
         subs_ocultos = false
     end
+    actualizar_dobles()
 end
 
 local function terminar_repeticion()
@@ -199,6 +265,7 @@ end
 mp.register_event("playback-restart", function() buscando = false end)
 
 mp.observe_property("time-pos", "number", function(_, t)
+    if t then actualizar_dobles() end
     if not t or buscando then return end
     if pausar_en then
         local l = lineas[foco]
@@ -243,8 +310,8 @@ local function mostrar_traduccion()
     terminar_repeticion()
     mp.set_property_bool("pause", true)
     mostrado.original = lineas[i].texto
-    if lineas[i].traduccion then
-        mostrado.traduccion = lineas[i].traduccion
+    if lineas[i].traduccion or lineas[i].automatica then
+        mostrado.traduccion = lineas[i].traduccion or lineas[i].automatica
         return dibujar()
     end
     mostrado.traduccion = "…"
@@ -302,11 +369,24 @@ end
 local function continuar_con_subtitulos()
     -- Solo cambia sub-visibility (la v de mpv) y reanuda: r, t, y y d siguen igual
     local visibles = not (mp.get_property_bool("sub-visibility") or subs_ocultos)
+    dobles = false
     terminar_repeticion()
     ocultar()
     mp.set_property_bool("sub-visibility", visibles)
     mp.set_property_bool("pause", false)
     mp.osd_message(visibles and "Con subtítulos (c para quitarlos)" or "Sin subtítulos")
+end
+
+local function continuar_con_traduccion()
+    -- Como c, pero los dibuja el script para poner la traducción debajo de cada línea
+    dobles = not dobles
+    terminar_repeticion()
+    ocultar()
+    mp.set_property_bool("sub-visibility", false)
+    if dobles then traducir_faltantes() end
+    actualizar_dobles(true)
+    mp.set_property_bool("pause", false)
+    mp.osd_message(dobles and "Con subtítulos y traducción (C para quitarlos)" or "Sin subtítulos")
 end
 
 local cargado
@@ -321,6 +401,7 @@ if cargado then
     mp.add_forced_key_binding("y", "audiotrans-traduccion", mostrar_traduccion)
     mp.add_forced_key_binding("d", "audiotrans-duda", guardar_duda)
     mp.add_forced_key_binding("c", "audiotrans-subtitulos", continuar_con_subtitulos)
+    mp.add_forced_key_binding("C", "audiotrans-subtitulos-traduccion", continuar_con_traduccion)
     mp.add_forced_key_binding("q", "audiotrans-seguir", seguir_normal)
     local exactas = 0
     for _, l in ipairs(lineas) do if l.inicio_exacto and l.fin_exacto then exactas = exactas + 1 end end
@@ -328,7 +409,7 @@ if cargado then
     if revisadas > 0 then preparado = preparado .. string.format(" · %d traducciones revisadas", revisadas) end
     mp.msg.verbose(revisadas .. " traducciones revisadas")
     mp.register_event("file-loaded", function()
-        mp.osd_message(#lineas .. " líneas" .. preparado .. " · r repetir · R más lento · e/E anterior/siguiente · t texto · y traducción · d guardar duda · c con subtítulos · q seguir normal", 6)
+        mp.osd_message(#lineas .. " líneas" .. preparado .. " · r repetir · R más lento · e/E anterior/siguiente · t texto · y traducción · d guardar duda · c con subtítulos · C con traducción · q seguir normal", 6)
     end)
 else
     mp.msg.warn("audiotrans: no se pudieron leer los subtítulos: " .. (opts.json ~= "" and opts.json or opts.srt))
