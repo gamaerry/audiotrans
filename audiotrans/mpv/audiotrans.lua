@@ -32,7 +32,7 @@ local LENTO = 0.75
 
 local lineas = {}        -- { inicio = s, fin = s, texto = "...", pos, inicio_exacto, fin_exacto, traduccion, automatica }
                          -- (tiempo del .srt; pos: número de bloque en el .srt original;
-                         -- automatica: la del traductor, pedida en lote por C)
+                         -- automatica: la del traductor, que C pide a la caché de traducciones.py)
 local foco = nil         -- índice de la línea con la que se está trabajando
 local pausar_en = nil    -- tiempo (del video) en el que pausar al terminar una repetición
 local velocidad = nil    -- velocidad de antes de una repetición lenta, para restaurarla
@@ -176,40 +176,46 @@ local function actualizar_dobles(forzar)
     overlay_dobles:update()
 end
 
-local function pedir_automaticas(indices)
-    -- Un solo proceso traduce el lote (el modelo se carga una vez): en 1x02 completo, ~18 s
-    if #indices == 0 then return end
-    local textos = {}
-    for _, i in ipairs(indices) do table.insert(textos, (lineas[i].texto:gsub("\n", " "))) end
+local function pedir_automaticas(tandas)
+    -- traducciones.py devuelve las que ya están en su caché (las que calculó revisar al mejorar
+    -- el episodio, o un C anterior) y traduce en un lote solo las demás, que también guarda.
+    -- Las tandas van una tras otra: así no se pisan al guardar ni compiten por la CPU
+    local indices = table.remove(tandas, 1)
+    if not indices then return end
+    if #indices == 0 then return pedir_automaticas(tandas) end
+    local por_pos, numeros = {}, {}
+    for _, i in ipairs(indices) do
+        por_pos[lineas[i].pos] = i
+        table.insert(numeros, lineas[i].pos)
+    end
     mp.command_native_async({
         name = "subprocess", capture_stdout = true, playback_only = false,
-        stdin_data = table.concat(textos, "\n") .. "\n",
-        args = { opts.python, "-m", "audiotrans.traduccion", opts.origen, opts.destino },
+        stdin_data = table.concat(numeros, "\n") .. "\n",
+        args = { opts.python, "-m", "audiotrans.traducciones", "automaticas", mp.get_property("path"), "-" .. opts.destino },
     }, function(ok, r)
         if not (ok and r.status == 0) then
             return mp.osd_message("No se pudieron traducir los subtítulos", 3)
         end
-        local n = 0
-        for traducida in r.stdout:gmatch("([^\n]*)\n") do
-            n = n + 1
-            if indices[n] and traducida ~= "" then lineas[indices[n]].automatica = traducida end
+        for n, traducida in r.stdout:gmatch("(%d+)\t([^\n]*)") do
+            local i = por_pos[tonumber(n)]
+            if i then lineas[i].automatica = traducida end
         end
         actualizar_dobles(true)
+        pedir_automaticas(tandas)
     end)
 end
 
 local function traducir_faltantes()
-    -- Primero las próximas 20 (llegan en unos segundos), luego todas las demás
+    -- Primero las próximas 20 (si no están en la caché, llegan en unos segundos), luego las demás
     if pedidas then return end
     pedidas = true
     local desde = linea_reciente() or 1
     local primeras, resto = {}, {}
     for i = 1, #lineas do
         local j = (desde + i - 2) % #lineas + 1
-        if not lineas[j].traduccion then table.insert(#primeras < 20 and primeras or resto, j) end
+        if not lineas[j].traduccion and lineas[j].pos then table.insert(#primeras < 20 and primeras or resto, j) end
     end
-    pedir_automaticas(primeras)
-    pedir_automaticas(resto)
+    pedir_automaticas({ primeras, resto })
 end
 
 local function dibujar()

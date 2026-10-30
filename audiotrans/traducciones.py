@@ -8,6 +8,7 @@ Uso: python -m audiotrans.traducciones revisar <video> [<desde> <hasta>] [-<dest
      python -m audiotrans.traducciones quitar <video> <número> [-<destino>]
      python -m audiotrans.traducciones validar <video> [-<destino>]
      python -m audiotrans.traducciones migrar <video> [-<destino>]
+     python -m audiotrans.traducciones automaticas <video> [-<destino>] < números
 
 OPUS-MT y Google traducen frase por frase y no entienden los modismos ("Cowboy up" sale
 "Vaquero arriba"). Un agente (o el usuario) puede escribir la traducción buena de esas líneas
@@ -27,6 +28,11 @@ en proporción; las que no tienen un bloque igual se quitan.
 revisar muestra, de las líneas que aún no tienen traducción revisada, el original y la
 traducción automática que mostraría y (con el modelo local, en un lote). Así un agente solo
 escribe las que están mal, en vez de traducir el episodio entero.
+
+Las automáticas quedan en la caché (~/.cache/audiotrans/automaticas/, una por versión del .srt,
+par y traductor), y revisar y automaticas solo traducen las que no están ahí. automaticas lo usa
+mpv/audiotrans.lua para la tecla C: recibe un número de bloque por renglón y escribe
+número<TAB>traducción, en ese orden.
 """
 import hashlib
 import os
@@ -34,9 +40,11 @@ import re
 import sys
 
 from .sincronizar import leer_srt
-from .traduccion import traducir_lote
+from . import traduccion
+from .traduccion import hay_local, traducir_lote
 
 CACHE = os.path.expanduser("~/.cache/audiotrans/sincronizados")
+AUTOMATICAS = os.path.expanduser("~/.cache/audiotrans/automaticas")
 PRACTICE = os.path.join(os.path.dirname(__file__), "sh", "practice")
 VENTANA = 6  # s alrededor del minuto que se busca: el tiempo que se lee en mpv es aproximado
 ENCABEZADO = "# número\toriginal\ttraducción\n"
@@ -159,6 +167,31 @@ def migrar(bloques, filas):
     return nuevas, perdidas
 
 
+def ruta_automaticas(srt, origen, destino):
+    # Por el contenido del .srt (dos series pueden tener un s1-e1) y por traductor, que dan otras
+    traductor = "google" if traduccion.EN_LINEA or not hay_local(origen, destino) else "local"
+    with open(srt, "rb") as f:
+        clave = hashlib.sha1(f.read()).hexdigest()[:12]
+    nombre = f"{os.path.splitext(os.path.basename(srt))[0]}-{clave}.{origen}-{destino}.{traductor}.tsv"
+    return os.path.join(AUTOMATICAS, nombre)
+
+
+def automaticas(bloques, numeros, ruta, origen, destino):
+    """{número: traducción automática} de esos bloques: las de la caché y, en un lote, las que faltan."""
+    guardadas = {n: tr for n, (original, tr) in leer_tsv(ruta).items()
+                 if 1 <= n <= len(bloques) and normalizar(original) == normalizar(bloques[n - 1][2])}
+    faltan = [n for n in numeros if n not in guardadas]
+    if faltan:
+        textos = [una_linea(bloques[n - 1][2]).replace(" / ", " ") for n in faltan]
+        for n, tr in zip(faltan, traducir_lote(textos, origen, destino)):
+            tr = " ".join((tr or "").split())
+            if tr and not tr.startswith("(sin traducción"):  # sin modelo ni conexión: se reintenta
+                guardadas[n] = tr
+        os.makedirs(os.path.dirname(ruta), exist_ok=True)
+        escribir_tsv(ruta, {n: (una_linea(bloques[n - 1][2]), tr) for n, tr in guardadas.items()})
+    return {n: guardadas[n] for n in numeros if n in guardadas}
+
+
 def fila(n, bloque, filas, t):
     return f"{n}\t{minuto(t)}\t{una_linea(bloque[2])}\t{filas.get(n, (None, ''))[1]}"
 
@@ -180,16 +213,24 @@ def main(args):
     bloques = leer_srt(srt)
     ruta = ruta_tsv(video, destino or destino_de(video))
     filas = leer_tsv(ruta)
+    origen = idiomas_de(video)[0]
 
     if accion == "revisar":
         desde, hasta = (int(resto[0]), int(resto[1])) if len(resto) >= 2 else (1, len(bloques))
         # Sin el minuto y sin las que ya están revisadas: lo justo para decidir cuáles corregir
         numeros = [n for n in range(max(1, desde), min(hasta, len(bloques)) + 1) if n not in filas]
-        textos = [una_linea(bloques[n - 1][2]).replace(" / ", " ") for n in numeros]
-        automaticas = traducir_lote(textos, idiomas_de(video)[0], destino or destino_de(video))
+        destino = destino or destino_de(video)
+        traducidas = automaticas(bloques, numeros, ruta_automaticas(srt, origen, destino), origen, destino)
         print("número\toriginal\ttraducción automática")
-        for n, automatica in zip(numeros, automaticas):
-            print(f"{n}\t{una_linea(bloques[n - 1][2])}\t{automatica}")
+        for n in numeros:
+            print(f"{n}\t{una_linea(bloques[n - 1][2])}\t{traducidas.get(n, '')}")
+    elif accion == "automaticas":
+        destino = destino or destino_de(video)
+        numeros = [int(l) for l in sys.stdin if l.strip().isdigit() and 1 <= int(l) <= len(bloques)]
+        traducidas = automaticas(bloques, numeros, ruta_automaticas(srt, origen, destino), origen, destino)
+        for n in numeros:
+            if n in traducidas:
+                print(f"{n}\t{traducidas[n]}")
     elif accion == "buscar" and resto:
         consulta = " ".join(resto)
         tiempos = tiempos_en_mpv(video, srt, bloques)

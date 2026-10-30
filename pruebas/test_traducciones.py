@@ -8,7 +8,8 @@ SRT = ("1\n00:00:01,000 --> 00:00:02,000\nDo I have to stay\nhere? <i>Cowboy up.
 
 
 @pytest.fixture
-def video(tmp_path):
+def video(tmp_path, monkeypatch):
+    monkeypatch.setattr(t, "AUTOMATICAS", str(tmp_path / "automaticas"))
     (tmp_path / "s1-e1.mp4").write_bytes(b"")
     (tmp_path / "s1-e1.srt").write_text(SRT)
     (tmp_path / "tt1358522").write_text("")
@@ -86,6 +87,30 @@ def test_revisar_muestra_solo_las_que_faltan_con_su_automatica(video, capsys, mo
     assert pedidos == [(["Do I have to stay here? Cowboy up.", "Did you get a load of that granddaughter?"], "en", "es")]
     assert salida[1:] == ["1\tDo I have to stay / here? Cowboy up.\t[Do I have to stay here? Cowboy up.]",
                           "3\tDid you get a load of / that granddaughter?\t[Did you get a load of that granddaughter?]"]
+
+
+def test_las_automaticas_se_guardan_y_no_se_traducen_otra_vez(video, capsys, monkeypatch):
+    import io
+    pedidos = []
+
+    def lote(textos, origen, destino):
+        pedidos.append(textos)
+        return [f"[{x}]" for x in textos]
+
+    monkeypatch.setattr(t, "traducir_lote", lote)
+    assert t.main(["revisar", str(video), "1", "1"]) == 0
+    capsys.readouterr()
+    # C pide la 3 y la 1: la 1 ya la tradujo revisar, y salen en el orden pedido
+    monkeypatch.setattr("sys.stdin", io.StringIO("3\n1\n"))
+    assert t.main(["automaticas", str(video)]) == 0
+    assert capsys.readouterr().out.splitlines() == [
+        "3\t[Did you get a load of that granddaughter?]", "1\t[Do I have to stay here? Cowboy up.]"]
+    assert pedidos == [["Do I have to stay here? Cowboy up."], ["Did you get a load of that granddaughter?"]]
+    # Si el .srt cambia, la caché es otra
+    video.with_suffix(".srt").write_text(SRT.replace("Yeah.", "Yes."))
+    monkeypatch.setattr("sys.stdin", io.StringIO("1\n"))
+    assert t.main(["automaticas", str(video)]) == 0
+    assert len(pedidos) == 3
 
 
 def test_traducir_lote_sin_modelo_local_traduce_una_por_una(monkeypatch):
