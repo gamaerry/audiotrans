@@ -35,7 +35,9 @@ He didn't say a word, but his eyes told me everything.
 | Tecla | |
 |---|---|
 | `r` | repite la línea que acaba de pasar y pausa al terminarla |
-| `R` | la repite más lento (0.75×) |
+| `R` | la repite más lento (0.75×) y con su texto en pantalla |
+| `e` | pasa a la línea anterior, si `r` no cayó en la que querías (cada `e`, una más atrás) |
+| `E` | pasa a la línea siguiente |
 | `t` | muestra el texto original |
 | `y` | muestra la traducción |
 | `d` | guarda la duda: texto, traducción y fragmento de audio |

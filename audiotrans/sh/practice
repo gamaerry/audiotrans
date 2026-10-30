@@ -19,7 +19,9 @@ Uso: practice <video> [subtítulos.srt] [-<destino>]
 
 Abre el video en mpv con los subtítulos ocultos. Cuando no entiendas algo:
   r  repetir la línea que acaba de pasar (se pausa al terminarla)
-  R  repetirla más lento (0.75×)
+  R  repetirla más lento (0.75×) y con su texto
+  e  ir a la línea anterior, si r no cayó en la que querías (cada e, una más)
+  E  ir a la línea siguiente
   t  mostrar el texto original de esa línea
   y  mostrar la traducción
   d  guardar la línea como duda, con su audio

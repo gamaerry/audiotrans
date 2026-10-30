@@ -112,8 +112,17 @@ error de tiempo aun sincronizada (medido: 0.9 s cubre el 95 % de las líneas,
 .TP
 .B R
 Repite la misma línea a 0.75× (mpv conserva el tono de voz) y regresa a la
-velocidad normal al terminarla. Sirve cuando hablan rápido o las palabras se
-pegan.
+velocidad normal al terminarla. Muestra el texto de la línea mientras la
+repite, y sigue en pantalla al pausar hasta que se reanuda. Sirve cuando
+hablan rápido o las palabras se pegan.
+.TP
+.B e
+Repite la línea anterior, por si \fBr\fR no cayó en la que se quería. Cada
+\fBe\fR retrocede una línea más, y \fBt\fR, \fBy\fR y \fBd\fR toman la
+línea a la que se llegó.
+.TP
+.B E
+Lo contrario de \fBe\fR: repite la línea siguiente.
 .TP
 .B t
 Pausa y muestra el texto original de la línea.

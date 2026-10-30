@@ -1,6 +1,8 @@
 -- Práctica de listening en mpv: los subtítulos van ocultos y se consultan línea por línea.
 --   r  repetir la línea que acaba de pasar (y pausar al terminarla)
---   R  repetirla más lento (0.75×)
+--   R  repetirla más lento (0.75×) y con su texto en pantalla
+--   e  ir a la línea anterior, por si r no cayó en la que se quería (cada e, una más atrás)
+--   E  ir a la línea siguiente (lo contrario de e)
 --   t  mostrar el texto original de la línea
 --   y  mostrar la traducción
 --   d  guardar la línea como duda, con su audio (para repasar en Anki)
@@ -123,6 +125,7 @@ local function dibujar()
 end
 
 local function ocultar()
+    if mostrado.original then mp.msg.verbose("en pantalla: (nada)") end
     mostrado = {}
     overlay:remove()
     if subs_ocultos then
@@ -148,6 +151,8 @@ local function repetir(i, lento)
     if lento then
         velocidad = mp.get_property_number("speed", 1)
         mp.set_property_number("speed", LENTO)
+        mostrado.original = l.texto  -- queda al pausar, como con t, y se quita al reanudar
+        dibujar()
     end
     local antes, despues = margenes(l)
     pausar_en = l.fin + retraso() + despues
@@ -168,6 +173,7 @@ mp.observe_property("time-pos", "number", function(_, t)
             -- r es sobre donde está ahora y no sobre la línea de antes
             terminar_repeticion()
             foco = nil
+            ocultar()
         elseif t >= pausar_en then
             terminar_repeticion()
             mp.set_property_bool("pause", true)
@@ -235,6 +241,18 @@ local function guardar_duda()
     end)
 end
 
+local function repetir_anterior()
+    local i = foco or linea_reciente()
+    if i == 1 then return mp.osd_message("Es la primera línea") end
+    repetir(i and i - 1)  -- repetir() deja el foco en la anterior: otra e retrocede una más
+end
+
+local function repetir_siguiente()
+    local i = foco or linea_reciente()
+    if i == #lineas then return mp.osd_message("Es la última línea") end
+    repetir((i or 0) + 1)  -- antes del primer diálogo, la siguiente es la primera
+end
+
 local function continuar_con_subtitulos()
     -- Solo cambia sub-visibility (la v de mpv) y reanuda: r, t, y y d siguen igual
     local visibles = not (mp.get_property_bool("sub-visibility") or subs_ocultos)
@@ -250,6 +268,8 @@ if opts.json ~= "" then cargado = cargar_json(opts.json) else cargado = opts.srt
 if cargado then
     mp.add_forced_key_binding("r", "audiotrans-repetir", function() repetir(foco or linea_reciente()) end)
     mp.add_forced_key_binding("R", "audiotrans-lento", function() repetir(foco or linea_reciente(), true) end)
+    mp.add_forced_key_binding("e", "audiotrans-anterior", repetir_anterior)
+    mp.add_forced_key_binding("E", "audiotrans-siguiente", repetir_siguiente)
     mp.add_forced_key_binding("t", "audiotrans-texto", mostrar_texto)
     mp.add_forced_key_binding("y", "audiotrans-traduccion", mostrar_traduccion)
     mp.add_forced_key_binding("d", "audiotrans-duda", guardar_duda)
@@ -258,7 +278,7 @@ if cargado then
     for _, l in ipairs(lineas) do if l.inicio_exacto and l.fin_exacto then exactas = exactas + 1 end end
     local preparado = opts.json ~= "" and string.format(" (%d %% con tiempo exacto)", math.floor(100 * exactas / #lineas)) or ""
     mp.register_event("file-loaded", function()
-        mp.osd_message(#lineas .. " líneas" .. preparado .. " · r repetir · R más lento · t texto · y traducción · d guardar duda · c con subtítulos", 6)
+        mp.osd_message(#lineas .. " líneas" .. preparado .. " · r repetir · R más lento · e/E anterior/siguiente · t texto · y traducción · d guardar duda · c con subtítulos", 6)
     end)
 else
     mp.msg.warn("audiotrans: no se pudieron leer los subtítulos: " .. (opts.json ~= "" and opts.json or opts.srt))
