@@ -370,9 +370,15 @@ si alguno cambia o si cambia cómo se procesan. Se pueden borrar.
 Subtítulos originales del episodio, junto al video, y sus traducciones
 revisadas (opcional).
 .TP
-.IR ~/.agents/skills/traducir\-episodio ", " ~/.claude/skills/traducir\-episodio ", " ~/.grok/skills/traducir\-episodio
+.IR ~/.agents/skills/traducir\-episodio ", " ~/.claude/skills/traducir\-episodio ", " ~/.grok/skills/traducir\-episodio ", " ~/.gemini/config/skills/traducir\-episodio
 Enlaces a la skill del paquete que pone \fBaudiotrans \-\-setup\fR: la primera la
-leen Gemini CLI, Codex, opencode y agy; las otras, Claude Code y Grok.
+leen Gemini CLI, Codex y opencode; las otras, Claude Code, Grok y agy (las de
+los agentes que estén instalados).
+.TP
+.I ~/.local/share/bash\-completion/completions/practice
+Completado de \fBpractice\fR para bash (lo pone \fBaudiotrans \-\-setup\fR):
+con Tab solo ofrece videos, carpetas y opciones, no los \fI.srt\fR ni los
+\fI.tsv\fR que están junto a cada video. Lo carga bash\-completion.
 .TP
 .I ~/.local/share/audiotrans/preferencias\-traduccion.md
 Preferencias del usuario para la skill (opcional): la variante del español,

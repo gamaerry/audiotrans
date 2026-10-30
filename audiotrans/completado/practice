@@ -1,0 +1,29 @@
+# Completado de practice para bash (lo instala audiotrans --setup en
+# ~/.local/share/bash-completion/completions/): solo videos y carpetas, no los .srt ni los
+# .tsv que están junto a cada video, y las opciones y los agentes de --translate.
+
+_practice() {
+    local cur="${COMP_WORDS[COMP_CWORD]}" prev="${COMP_WORDS[COMP_CWORD-1]}" f palabra hay_video=false
+    # Las mismas extensiones que extensiones_video en practice
+    local videos='mp4|mkv|webm|avi|mov|m4v|mpg|mpeg|ts|wmv|flv|ogv'
+    COMPREPLY=()
+    case "$prev" in
+        --agent) mapfile -t COMPREPLY < <(compgen -W "claude gemini codex opencode grok agy" -- "$cur"); return ;;
+        --model) return ;;  # depende del agente
+    esac
+    if [[ "$cur" == -* ]]; then
+        mapfile -t COMPREPLY < <(compgen -W "--prepare --status --translate --agent --model --no-sync --help" -- "$cur")
+        return
+    fi
+    [[ $COMP_CWORD -eq 1 ]] && mapfile -t COMPREPLY < <(compgen -W "saved" -- "$cur")
+    # Después de un video, al abrirlo también se puede dar otro .srt
+    for palabra in "${COMP_WORDS[@]:1:COMP_CWORD-1}"; do
+        [[ "${palabra,,}" =~ \.($videos)$ ]] && hay_video=true
+    done
+    while IFS= read -r f; do
+        if [[ -d "$f" || "${f,,}" =~ \.($videos)$ ]] || { $hay_video && [[ "${f,,}" == *.srt ]]; }; then
+            COMPREPLY+=("$f")
+        fi
+    done < <(compgen -f -- "$cur")
+}
+complete -o filenames -F _practice practice

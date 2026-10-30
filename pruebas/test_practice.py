@@ -93,7 +93,7 @@ def _con_skill(entorno, tmp_path, *carpetas):
 ])
 def test_translate_abre_el_agente_con_el_prompt(carpeta, tmp_path, agente, esperado):
     serie, entorno = carpeta
-    entorno = _con_skill(entorno, tmp_path, ".agents/skills", ".claude/skills", ".grok/skills")
+    entorno = _con_skill(entorno, tmp_path, ".agents/skills", ".claude/skills", ".grok/skills", ".gemini/config/skills")
     falso = entorno["PATH"].split(":")[0]
     with open(os.path.join(falso, agente), "w") as f:
         f.write('#!/bin/sh\nprintf "[%s]\\n" "$PWD" "$@"\n')

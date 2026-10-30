@@ -1,4 +1,5 @@
-"""audiotrans --setup: descarga los traductores locales en-es y es-en, e instala el manual y la skill.
+"""audiotrans --setup: descarga los traductores locales en-es y es-en, e instala el manual, la skill
+y el completado de practice para bash.
 
 Se puede volver a correr sin problema: solo hace lo que falte. Whisper no se descarga aquí:
 faster-whisper lo baja la primera vez que se usa (small ≈ 460 MB).
@@ -22,8 +23,15 @@ MAN1 = os.path.expanduser("~/.local/share/man/man1")
 # Páginas que llevan a audiotrans.1: los comandos y los alias de alias.sh
 PAGINAS = "textrans practice es en cbes cben pses psen mes men ses sen".split()
 SKILL = "traducir-episodio"
-# Gemini CLI, Codex, opencode y agy leen ~/.agents/skills; Claude Code y Grok, solo su carpeta
-AGENTES_APARTE = (".claude", ".grok")
+# Gemini CLI, Codex y opencode leen ~/.agents/skills (comprobado con gemini skills list, codex
+# debug prompt-input y opencode debug skill). Los demás solo su carpeta: (si está instalado, skills)
+AGENTES_APARTE = {
+    "claude": (".claude", ".claude/skills"),
+    "grok": (".grok", ".grok/skills"),
+    # agy -p /skills: no lee ~/.agents/skills ni conviene ~/.gemini/skills, que Gemini CLI también lee
+    # y avisa de un conflicto en cada arranque
+    "agy": (".gemini/antigravity-cli", ".gemini/config/skills"),
+}
 
 
 def _bajar(url, destino):
@@ -84,16 +92,28 @@ def skill(casa=None):
     else:
         os.makedirs(os.path.dirname(comun), exist_ok=True)
         os.symlink(fuente, comun)
-    for agente in AGENTES_APARTE:
-        if not os.path.isdir(os.path.join(casa, agente)):
+    for instalado, carpeta in AGENTES_APARTE.values():
+        if not os.path.isdir(os.path.join(casa, instalado)):
             continue  # ese agente no está instalado
-        enlace = os.path.join(casa, agente, "skills", SKILL)
+        enlace = os.path.join(casa, carpeta, SKILL)
         if os.path.islink(enlace) and not os.path.exists(enlace):
             os.remove(enlace)  # enlace roto
         if not os.path.lexists(enlace):
             os.makedirs(os.path.dirname(enlace), exist_ok=True)
-            os.symlink(os.path.join("..", "..", ".agents", "skills", SKILL), enlace)
+            os.symlink(os.path.relpath(comun, os.path.dirname(enlace)), enlace)
     print(f"== Skill {SKILL} para los agentes (practice --translate)")
+
+
+def completado(casa=None):
+    """El completado de practice (solo videos y carpetas), donde bash-completion lo carga solo."""
+    casa = casa or os.path.expanduser("~")
+    datos = os.environ.get("XDG_DATA_HOME") or os.path.join(casa, ".local", "share")
+    enlace = os.path.join(datos, "bash-completion", "completions", "practice")
+    os.makedirs(os.path.dirname(enlace), exist_ok=True)
+    if os.path.lexists(enlace):
+        os.remove(enlace)
+    os.symlink(os.path.join(PAQUETE, "completado", "practice"), enlace)
+    print(f"== Completado de practice en {enlace} (con bash-completion; en una terminal nueva)")
 
 
 def main():
@@ -101,6 +121,7 @@ def main():
         traductor(par, origen)
     manual()
     skill()
+    completado()
     print("Listo. Para los alias (es, en, mes, ses, cbes, pses...), agrega a ~/.bashrc:")
     print(f"    source {os.path.join(PAQUETE, 'alias.sh')}")
 

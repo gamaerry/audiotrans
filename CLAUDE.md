@@ -7,14 +7,14 @@ Notas para trabajar en el código. Qué hace la herramienta y por qué está dis
 - Es un paquete de Python (`audiotrans/`, `pyproject.toml`) que se instala con `uv tool install`; `instalar.sh` lo instala editable desde el repo y corre `audiotrans --setup` (`instalar.py`: traductores y manual).
 - `audiotrans` y `practice` son bash (`audiotrans/sh/`). Sus puntos de entrada (`lanzar.py`) los ejecutan con `AUDIOTRANS_PYTHON` = el Python del paquete, y ellos llaman a los módulos con `"$python" -m audiotrans.<módulo>`; el Lua también (`python -m audiotrans.texto` y `audiotrans.dudas`). `textrans` es Python directo (`texto:principal`).
 - Los módulos se importan entre sí de forma relativa (`from .traduccion import ...`): ya no se pueden correr como `python archivo.py`.
-- Todo lo que no es `.py` (`sh/`, `mpv/`, `man/`, `skills/`, `alias.sh`) va dentro del paquete para que se instale. Una instalación editable no detecta si falta algo: pruébalo con una no editable (abajo).
+- Todo lo que no es `.py` (`sh/`, `mpv/`, `man/`, `skills/`, `completado/`, `alias.sh`) va dentro del paquete para que se instale. Una instalación editable no detecta si falta algo: pruébalo con una no editable (abajo).
 - Datos fuera del repo, en `$AUDIOTRANS_DATOS` (por defecto `~/.local/share/audiotrans`): `modelos/{en-es,es-en}`, `dudas/` y la clave de OpenSubtitles. Nunca van a git.
 - Las opciones viajan del bash a Python por variables de entorno: `AUDIOTRANS_MODEL`, `AUDIOTRANS_RAPIDO`, `AUDIOTRANS_EN_LINEA`, `AUDIOTRANS_HILOS`, `AUDIOTRANS_DATOS`. `AUDIOTRANS_AGENTE` solo lo lee `practice --translate`, que abre la conversación del agente (`lanzar_agente`: cada CLI recibe el prompt inicial y el modelo con banderas distintas; pruébalas con su `--help` al actualizarlos).
 
 ## Al cambiar algo
 
 - Actualiza juntos el `--help` (`audiotrans/sh/audiotrans`, `audiotrans/sh/practice` y `audiotrans/texto.py`), `audiotrans/man/audiotrans.1` y el README. Comprueba el manual con `man -l audiotrans/man/audiotrans.1` y `groff -k -man -ww -z` (sin avisos, como en CI).
-- Una opción o un alias nuevo también va en `audiotrans/alias.sh` y en `PAGINAS` de `instalar.py` (las páginas `.so` del manual).
+- Una opción o un alias nuevo también va en `audiotrans/alias.sh` y en `PAGINAS` de `instalar.py` (las páginas `.so` del manual). Una opción de `practice`, también en `audiotrans/completado/practice`, y una extensión de video nueva, en las dos listas (`extensiones_video` y `videos`).
 - Si cambia lo que producen `sincronizar.py` o `alinear.py`, sube `version_cache` en `audiotrans/sh/practice`; si no, se sigue usando la caché vieja (la clave solo depende del video y del `.srt`).
 - Corre `pytest` (en `pruebas/test_*.py`; solo funciones puras, sin modelos ni red) antes de subir algo. GitHub Actions las corre con el paquete instalado no editable.
 - Escribe en español, como el resto: nombres, comentarios y mensajes. La excepción son los comandos, subcomandos y opciones (`practice --prepare`, `--real-time`), que van en inglés para quien no habla español.

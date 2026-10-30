@@ -211,8 +211,14 @@ traducir() {
     done
     [[ "$agente" =~ ^($agentes)$ ]] || { echo "practice: agente desconocido: $agente (son ${agentes//|/, })" >&2; exit 2; }
     command -v "$agente" >/dev/null || { echo "practice: no encuentro el comando $agente" >&2; exit 2; }
-    # Claude Code y Grok solo leen su carpeta; los demás, ~/.agents/skills (audiotrans --setup las enlaza)
-    case "$agente" in claude) skills=~/.claude/skills ;; grok) skills=~/.grok/skills ;; *) skills=~/.agents/skills ;; esac
+    # Claude Code, Grok y agy solo leen su carpeta; los demás, ~/.agents/skills (como AGENTES_APARTE
+    # en instalar.py, que es quien las enlaza)
+    case "$agente" in
+        claude) skills=~/.claude/skills ;;
+        grok) skills=~/.grok/skills ;;
+        agy) skills=~/.gemini/config/skills ;;
+        *) skills=~/.agents/skills ;;
+    esac
     [[ -f "$skills/traducir-episodio/SKILL.md" ]] \
         || { echo "practice: falta la skill traducir-episodio para $agente (en $skills); instálala con: audiotrans --setup" >&2; exit 2; }
     [[ ${#args[@]} -gt 0 ]] || { ayuda >&2; exit 2; }
