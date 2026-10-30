@@ -187,8 +187,13 @@ def automaticas(bloques, numeros, ruta, origen, destino):
             tr = " ".join((tr or "").split())
             if tr and not tr.startswith("(sin traducción"):  # sin modelo ni conexión: se reintenta
                 guardadas[n] = tr
-        os.makedirs(os.path.dirname(ruta), exist_ok=True)
-        escribir_tsv(ruta, {n: (una_linea(bloques[n - 1][2]), tr) for n, tr in guardadas.items()})
+        try:
+            os.makedirs(os.path.dirname(ruta), exist_ok=True)
+            escribir_tsv(ruta, {n: (una_linea(bloques[n - 1][2]), tr) for n, tr in guardadas.items()})
+        except OSError as e:
+            # Un agente en sandbox (Codex) solo escribe en la carpeta del video: sin caché, se
+            # traducen otra vez la próxima vez, pero revisar no se detiene
+            print(f"traducciones: no se guardó la caché de automáticas ({e.strerror}: {ruta})", file=sys.stderr)
     return {n: guardadas[n] for n in numeros if n in guardadas}
 
 

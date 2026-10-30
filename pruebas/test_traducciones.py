@@ -113,6 +113,16 @@ def test_las_automaticas_se_guardan_y_no_se_traducen_otra_vez(video, capsys, mon
     assert len(pedidos) == 3
 
 
+def test_revisar_sigue_si_no_puede_escribir_la_cache(video, capsys, monkeypatch):
+    # Como en el sandbox de Codex, que solo deja escribir en la carpeta del video
+    monkeypatch.setattr(t, "traducir_lote", lambda textos, o, d: [f"[{x}]" for x in textos])
+    (video.parent / "automaticas").write_text("")  # no se puede crear la carpeta
+    assert t.main(["revisar", str(video), "1", "1"]) == 0
+    salida = capsys.readouterr()
+    assert salida.out.splitlines()[1:] == ["1\tDo I have to stay / here? Cowboy up.\t[Do I have to stay here? Cowboy up.]"]
+    assert "no se guardó la caché" in salida.err
+
+
 def test_traducir_lote_sin_modelo_local_traduce_una_por_una(monkeypatch):
     from audiotrans import traduccion
     monkeypatch.setattr(traduccion, "hay_local", lambda o, d: False)
