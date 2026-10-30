@@ -68,6 +68,8 @@ python -m audiotrans.traducciones exportar s1-e1.mp4 1 120     # para traducir p
 python -m audiotrans.traducciones validar s1-e1.mp4
 ```
 
+Para no escribir el prompt cada vez, `practice --translate s1-e2.mp4` abre la conversación del agente, en la carpeta del video, con el prompt ya escrito (usar la skill `traducir-episodio` sobre el episodio completo y gastar pocos tokens). `--agent` elige entre `claude` (el de omisión, o `$AUDIOTRANS_AGENTE`), `gemini`, `codex`, `opencode`, `grok` y `agy`, y `--model` el modelo, con el nombre que use ese agente. Con una carpeta o varios videos abre uno tras otro: una conversación por episodio sale más barata que todos en una, porque cada llamada al modelo reenvía la conversación entera. `practice --status` dice cuántas traducciones revisadas tiene cada episodio. La skill vive fuera del repo, en `~/.agents/skills/traducir-episodio/`.
+
 `revisar` traduce con el modelo local, en un lote, las líneas que aún no están revisadas (~18 s el episodio completo) y muestra cada original junto a lo que mostraría `y`. Así el agente solo escribe las que están mal, en vez de traducir el episodio entero, y gasta muchos menos tokens. Cada fila guarda también el texto original: si el `.srt` cambia (se corrige o se baja otra versión), las filas que ya no coinciden se ignoran y esas líneas se traducen como siempre. `migrar` pasa al `.srt` nuevo las que tienen una línea con el mismo texto (en 1x02, 159 de 361; las demás estaban cortadas distinto).
 
 Opciones de los comandos de audio (`audiotrans`):

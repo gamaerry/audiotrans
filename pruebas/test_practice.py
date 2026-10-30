@@ -68,3 +68,48 @@ def test_traducciones_revisadas(carpeta):
     # El .tsv es del idioma al que se traduce: con -fr no se usa el de español
     r = practice(serie, entorno, "--no-sync", "a.mp4", "-fr")
     assert "audiotrans-traducciones=," in r.stdout
+
+
+def test_status_cuenta_las_traducciones_revisadas(carpeta):
+    serie, entorno = carpeta
+    (serie / "a.es.tsv").write_text("# número\toriginal\ttraducción\n1\tHola\tHello\n")
+    r = practice(serie, entorno, "--status", "a.mp4")
+    assert "a.mp4 · 1 traducciones revisadas" in r.stdout
+
+
+@pytest.mark.parametrize("agente, esperado", [
+    ("claude", ["--model", "M", "PROMPT"]), ("gemini", ["-m", "M", "-i", "PROMPT"]),
+    ("codex", ["-m", "M", "PROMPT"]), ("opencode", ["-m", "M", "--prompt", "PROMPT"]),
+    ("grok", ["-m", "M", "PROMPT"]), ("agy", ["--model", "M", "-i", "PROMPT"]),
+])
+def test_translate_abre_el_agente_con_el_prompt(carpeta, agente, esperado):
+    serie, entorno = carpeta
+    falso = entorno["PATH"].split(":")[0]
+    with open(os.path.join(falso, agente), "w") as f:
+        f.write('#!/bin/sh\nprintf "[%s]\\n" "$PWD" "$@"\n')
+    os.chmod(os.path.join(falso, agente), 0o755)
+    r = practice(serie, entorno, "--translate", "a.mp4", "--agent", agente, "--model", "M")
+    assert r.returncode == 0, r.stderr
+    salida = [l[1:-1] for l in r.stdout.splitlines() if l.startswith("[")]
+    assert salida[0] == str(serie)  # se abre en la carpeta del video
+    prompt = next(a for a in salida if "traducir-episodio" in a)
+    assert f"{serie}/a.mp4" in prompt
+    assert salida[1:] == [prompt if x == "PROMPT" else x for x in esperado]
+
+
+def test_translate_sin_modelo_ni_agente_usa_claude(carpeta):
+    serie, entorno = carpeta
+    falso = entorno["PATH"].split(":")[0]
+    with open(os.path.join(falso, "claude"), "w") as f:
+        f.write('#!/bin/sh\nprintf "[%s]\\n" "$@"\n')
+    os.chmod(os.path.join(falso, "claude"), 0o755)
+    r = practice(serie, entorno, "--translate", ".")
+    assert r.returncode == 0, r.stderr
+    assert len([l for l in r.stdout.splitlines() if l.startswith("[")]) == 1  # solo el prompt
+
+
+def test_translate_agente_desconocido(carpeta):
+    serie, entorno = carpeta
+    r = practice(serie, entorno, "--translate", "a.mp4", "--agent", "chatgpt")
+    assert r.returncode == 2
+    assert "agente desconocido" in r.stderr

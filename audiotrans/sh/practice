@@ -9,12 +9,14 @@ cache="$HOME/.cache/audiotrans/sincronizados"
 # Súbela cuando cambie lo que producen sincronizar.py o alinear.py, para no usar la caché vieja
 version_cache=2
 extensiones_video='mp4|mkv|webm|avi|mov|m4v|mpg|mpeg|ts|wmv|flv|ogv'
+agentes='claude|gemini|codex|opencode|grok|agy'
 
 ayuda() {
     cat <<'EOF'
 Uso: practice <video> [subtítulos.srt] [-<destino>]
      practice --prepare <video o carpeta> [...]
      practice --status [<video o carpeta> ...]
+     practice --translate <video o carpeta> [...] [--agent <agente>] [--model <modelo>]
      practice saved
 
 Abre el video en mpv con los subtítulos ocultos. Cuando no entiendas algo:
@@ -60,6 +62,10 @@ lista las dudas guardadas (en ~/.local/share/audiotrans/dudas/).
 Los modismos ("Cowboy up") se traducen literal. Un agente o tú pueden escribir la
 traducción buena de esas líneas en <video>.<destino>.tsv, junto al video (ver
 "python -m audiotrans.traducciones"), e y y d la usan en vez de traducir.
+--translate abre un agente con la skill traducir-episodio y el prompt ya escrito
+para cada episodio, uno tras otro (al cerrar la conversación sigue el siguiente).
+Agentes: claude (el de omisión, o $AUDIOTRANS_AGENTE), gemini, codex, opencode,
+grok y agy; --model elige el modelo, con el nombre que use ese agente.
 EOF
 }
 
@@ -167,6 +173,59 @@ preparar() {
     done
 }
 
+revisadas_de() {
+    # " · N traducciones revisadas" si el video tiene <video>.<destino>.tsv
+    local n
+    marca_de "$1"
+    [[ -f "${1%.*}.$destino_carpeta.tsv" ]] || return 0
+    n="$(grep -c '^[0-9]' "${1%.*}.$destino_carpeta.tsv" || true)"
+    echo " · $n traducciones revisadas"
+}
+
+lanzar_agente() {
+    # Abre la sesión interactiva del agente con el prompt inicial; cada uno lo recibe distinto
+    local agente="$1" modelo="$2" prompt="$3" m=()
+    case "$agente" in
+        claude) [[ -z "$modelo" ]] || m=(--model "$modelo"); claude "${m[@]}" "$prompt" ;;
+        gemini) [[ -z "$modelo" ]] || m=(-m "$modelo"); gemini "${m[@]}" -i "$prompt" ;;
+        codex) [[ -z "$modelo" ]] || m=(-m "$modelo"); codex "${m[@]}" "$prompt" ;;
+        opencode) [[ -z "$modelo" ]] || m=(-m "$modelo"); opencode "${m[@]}" --prompt "$prompt" ;;
+        grok) [[ -z "$modelo" ]] || m=(-m "$modelo"); grok "${m[@]}" "$prompt" ;;
+        agy) [[ -z "$modelo" ]] || m=(--model "$modelo"); agy "${m[@]}" -i "$prompt" ;;
+    esac
+}
+
+traducir() {
+    # Un agente con la skill traducir-episodio por video, uno tras otro: una conversación por
+    # episodio sale más barata que todos en una, porque cada llamada reenvía la conversación
+    local agente="${AUDIOTRANS_AGENTE:-claude}" modelo="" args=() video srt carpeta prompt lista
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --agent|--model)
+                [[ $# -ge 2 ]] || { echo "practice: falta el valor de $1" >&2; exit 2; }
+                if [[ "$1" == --agent ]]; then agente="$2"; else modelo="$2"; fi
+                shift 2 ;;
+            -*) echo "practice: opción desconocida: $1 (ver --help)" >&2; exit 2 ;;
+            *) args+=("$1"); shift ;;
+        esac
+    done
+    [[ "$agente" =~ ^($agentes)$ ]] || { echo "practice: agente desconocido: $agente (son ${agentes//|/, })" >&2; exit 2; }
+    command -v "$agente" >/dev/null || { echo "practice: no encuentro el comando $agente" >&2; exit 2; }
+    [[ ${#args[@]} -gt 0 ]] || { ayuda >&2; exit 2; }
+    videos "${args[@]}"
+    for video in "${lista[@]}"; do
+        srt="${video%.*}.srt"
+        [[ -f "$video" ]] || { echo "practice: no encuentro el video: $video" >&2; continue; }
+        [[ -f "$srt" ]] || { echo "practice: $video no tiene .srt; ábrelo una vez con practice para bajarlo" >&2; continue; }
+        carpeta="$(cd "$(dirname "$video")" && pwd)"
+        # La ruta completa y las reglas que más tokens ahorran: así el agente no explora
+        prompt="Usa la skill traducir-episodio para revisar y corregir las traducciones del episodio completo $carpeta/$(basename "$video"). Síguela al pie de la letra para gastar pocos tokens: no explores, lee la salida de revisar directamente y en cada comando guarda un tramo y pide el siguiente. Al terminar, dame solo el resumen breve."
+        echo "== $(basename "$video"): abriendo $agente${modelo:+ ($modelo)}; cuando termine, cierra la conversación para seguir"
+        (cd "$carpeta" && lanzar_agente "$agente" "$modelo" "$prompt") || echo "  $agente terminó con error" >&2
+        echo "  $(basename "$video")$(revisadas_de "$video")"
+    done
+}
+
 estado() {
     # Una línea por video: preparado (con el % de líneas ubicadas), solo sincronizado o nada
     local video srt base listos=0 lista
@@ -183,15 +242,15 @@ estado() {
         base="$(base_de "$video" "$srt")"
         if [[ -f "$base.json" ]]; then
             listos=$((listos + 1))
-            printf '%-14s %s (%s)\n' "preparado" "$video" "$("$python" -c '
+            printf '%-14s %s (%s)%s\n' "preparado" "$video" "$("$python" -c '
 import json, sys
 lineas = json.load(open(sys.argv[1]))["lineas"]
 exactas = sum(l["inicio_exacto"] and l["fin_exacto"] for l in lineas)
-print(f"{round(100 * exactas / max(len(lineas), 1))} % de las líneas exactas")' "$base.json")"
+print(f"{round(100 * exactas / max(len(lineas), 1))} % de las líneas exactas")' "$base.json")" "$(revisadas_de "$video")"
         elif [[ -f "$base.srt" ]]; then
-            printf '%-14s %s\n' "sincronizado" "$video"
+            printf '%-14s %s%s\n' "sincronizado" "$video" "$(revisadas_de "$video")"
         else
-            printf '%-14s %s\n' "sin preparar" "$video"
+            printf '%-14s %s%s\n' "sin preparar" "$video" "$(revisadas_de "$video")"
         fi
         # Un .srt mal hecho (bajado antes de que subtitulos.py lo revisara) estorba al leer y al traducir
         "$python" -c '
@@ -210,6 +269,7 @@ case "${1:-}" in
     saved) exec "$python" -m audiotrans.dudas listar ;;
     --prepare) shift; [[ $# -gt 0 ]] || { ayuda >&2; exit 2; }; preparar "$@"; exit 0 ;;
     --status) shift; estado "$@"; exit 0 ;;
+    --translate) shift; traducir "$@"; exit 0 ;;
 esac
 for arg in "$@"; do
     case "$arg" in

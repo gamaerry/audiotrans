@@ -9,7 +9,7 @@ Notas para trabajar en el código. Qué hace la herramienta y por qué está dis
 - Los módulos se importan entre sí de forma relativa (`from .traduccion import ...`): ya no se pueden correr como `python archivo.py`.
 - Todo lo que no es `.py` (`sh/`, `mpv/`, `man/`, `alias.sh`) va dentro del paquete para que se instale. Una instalación editable no detecta si falta algo: pruébalo con una no editable (abajo).
 - Datos fuera del repo, en `$AUDIOTRANS_DATOS` (por defecto `~/.local/share/audiotrans`): `modelos/{en-es,es-en}`, `dudas/` y la clave de OpenSubtitles. Nunca van a git.
-- Las opciones viajan del bash a Python por variables de entorno: `AUDIOTRANS_MODEL`, `AUDIOTRANS_RAPIDO`, `AUDIOTRANS_EN_LINEA`, `AUDIOTRANS_HILOS`, `AUDIOTRANS_DATOS`.
+- Las opciones viajan del bash a Python por variables de entorno: `AUDIOTRANS_MODEL`, `AUDIOTRANS_RAPIDO`, `AUDIOTRANS_EN_LINEA`, `AUDIOTRANS_HILOS`, `AUDIOTRANS_DATOS`. `AUDIOTRANS_AGENTE` solo lo lee `practice --translate`, que abre la conversación del agente (`lanzar_agente`: cada CLI recibe el prompt inicial y el modelo con banderas distintas; pruébalas con su `--help` al actualizarlos).
 
 ## Al cambiar algo
 
