@@ -151,8 +151,8 @@ muestran una línea, los subtítulos normales se quitan para no encimarse.
 .B C
 Como \fBc\fR, pero debajo de cada línea va su traducción: la revisada de
 \fI<video>.<destino>.tsv\fR o, si no la hay, la automática. Las automáticas
-salen de la caché si ya se calcularon (al revisar el episodio o con otro
-\fBC\fR); las que faltan se traducen en lote al presionarla (primero las
+salen de \fI<video>.<destino>.automaticas.tsv\fR si ya se calcularon (al
+revisar el episodio, con \fBy\fR o con otro \fBC\fR); las que faltan se traducen en lote al presionarla (primero las
 próximas 20) y, mientras llegan, se ve \(lq…\(rq. Otra vez \fBC\fR los quita.
 .TP
 .B q
@@ -373,14 +373,11 @@ Subtítulos ya sincronizados de \fBpractice\fR (\fI.srt\fR), y los de
 tiempo exacto). Uno por combinación de video y \fI.srt\fR; se vuelven a generar
 si alguno cambia o si cambia cómo se procesan. Se pueden borrar.
 .TP
-.I ~/.cache/audiotrans/automaticas/
-Traducciones automáticas de las líneas de cada \fI.srt\fR, por par y por
-traductor, para que \fBy\fR y \fBC\fR de \fBpractice\fR no las calculen otra
-vez. Se pueden borrar.
-.TP
-.IR video ".srt, " video . destino .tsv
-Subtítulos originales del episodio, junto al video, y sus traducciones
-revisadas (opcional).
+.IR video ".srt, " video . destino .tsv ", " video . destino .automaticas.tsv
+Subtítulos originales del episodio, junto al video, sus traducciones
+revisadas (opcional) y las automáticas ya calculadas, para que \fBy\fR y
+\fBC\fR no las calculen otra vez (\fI.automaticas\-google.tsv\fR si las dio
+Google). Las automáticas se pueden borrar.
 .TP
 .IR ~/.agents/skills/traducir\-episodio ", " ~/.claude/skills/traducir\-episodio ", " ~/.grok/skills/traducir\-episodio ", " ~/.gemini/config/skills/traducir\-episodio
 Enlaces a la skill del paquete que pone \fBaudiotrans \-\-setup\fR: la primera la

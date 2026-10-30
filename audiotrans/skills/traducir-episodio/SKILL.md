@@ -99,6 +99,6 @@ printf '%s\n' $'3\t...' $'17\t...' | $PY -m audiotrans.traducciones poner <video
 
 ## No hagas
 
-- No edites el `.srt`, los archivos de la caché (`~/.cache/audiotrans/`) ni el código de audiotrans. Todo va en el `.tsv` y siempre con `poner` y `quitar`, no a mano: el formato lleva tabuladores y el original de cada fila tiene que coincidir con el `.srt`.
+- No edites el `.srt`, los archivos de la caché (`~/.cache/audiotrans/`) ni el código de audiotrans, y tampoco `<video>.<destino>.automaticas.tsv`: ahí `revisar` guarda solo las automáticas, para no calcularlas otra vez. Todo va en el `.tsv` y siempre con `poner` y `quitar`, no a mano: el formato lleva tabuladores y el original de cada fila tiene que coincidir con el `.srt`.
 - No uses Google ni `textrans` para traducir: el punto es que traduzcas tú, con el contexto.
 - No instales, actualices ni configures nada: todo lo que necesitas ya está instalado.

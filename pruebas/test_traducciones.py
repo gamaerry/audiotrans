@@ -8,8 +8,7 @@ SRT = ("1\n00:00:01,000 --> 00:00:02,000\nDo I have to stay\nhere? <i>Cowboy up.
 
 
 @pytest.fixture
-def video(tmp_path, monkeypatch):
-    monkeypatch.setattr(t, "AUTOMATICAS", str(tmp_path / "automaticas"))
+def video(tmp_path):
     (tmp_path / "s1-e1.mp4").write_bytes(b"")
     (tmp_path / "s1-e1.srt").write_text(SRT)
     (tmp_path / "tt1358522").write_text("")
@@ -106,17 +105,20 @@ def test_las_automaticas_se_guardan_y_no_se_traducen_otra_vez(video, capsys, mon
     assert capsys.readouterr().out.splitlines() == [
         "3\t[Did you get a load of that granddaughter?]", "1\t[Do I have to stay here? Cowboy up.]"]
     assert pedidos == [["Do I have to stay here? Cowboy up."], ["Did you get a load of that granddaughter?"]]
-    # Si el .srt cambia, la caché es otra
-    video.with_suffix(".srt").write_text(SRT.replace("Yeah.", "Yes."))
-    monkeypatch.setattr("sys.stdin", io.StringIO("1\n"))
+    # Si el .srt cambia, la fila que ya no coincide se traduce otra vez
+    video.with_suffix(".srt").write_text(SRT.replace("Cowboy up.", "Saddle up."))
+    monkeypatch.setattr("sys.stdin", io.StringIO("1\n3\n"))
     assert t.main(["automaticas", str(video)]) == 0
-    assert len(pedidos) == 3
+    assert pedidos[2:] == [["Do I have to stay here? Saddle up."]]
 
 
 def test_revisar_sigue_si_no_puede_escribir_la_cache(video, capsys, monkeypatch):
-    # Como en el sandbox de Codex, que solo deja escribir en la carpeta del video
+    # Una carpeta en la que no se puede escribir
     monkeypatch.setattr(t, "traducir_lote", lambda textos, o, d: [f"[{x}]" for x in textos])
-    (video.parent / "automaticas").write_text("")  # no se puede crear la carpeta
+    def solo_lectura(ruta, filas):
+        raise OSError(30, "Read-only file system")
+
+    monkeypatch.setattr(t, "escribir_tsv", solo_lectura)
     assert t.main(["revisar", str(video), "1", "1"]) == 0
     salida = capsys.readouterr()
     assert salida.out.splitlines()[1:] == ["1\tDo I have to stay / here? Cowboy up.\t[Do I have to stay here? Cowboy up.]"]
