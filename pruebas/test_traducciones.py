@@ -93,3 +93,16 @@ def test_traducir_lote_sin_modelo_local_traduce_una_por_una(monkeypatch):
     monkeypatch.setattr(traduccion, "hay_local", lambda o, d: False)
     monkeypatch.setattr(traduccion, "traducir", lambda texto, o, d, supuesto=None: texto.upper())
     assert traduccion.traducir_lote(["hi", "bye"], "en", "fr") == ["HI", "BYE"]
+
+
+def test_migrar_a_otra_version_del_srt():
+    viejos = [(0, 0, "Finally squeezed into\na trainat union square."), (0, 0, "Yeah."), (0, 0, "Bye.")]
+    filas = {1: (t.una_linea(viejos[0][2]), "Por fin me metí en un tren en Union Square."),
+             2: ("Yeah.", "Sí."), 3: ("Bye.", "Adiós.")}
+    # La versión nueva separa las palabras, agrega una línea al inicio y repite "Yeah."
+    nuevos = [(0, 0, "Yeah."), (0, 0, "Finally squeezed into a train\nat Union Square."), (0, 0, "Yeah."),
+              (0, 0, "See you.")]
+    migradas, perdidas = t.migrar(nuevos, filas)
+    assert migradas == {2: ("Finally squeezed into a train / at Union Square.", "Por fin me metí en un tren en Union Square."),
+                        3: ("Yeah.", "Sí.")}  # la "Yeah." de posición más parecida
+    assert perdidas == 1

@@ -6,7 +6,11 @@ carpeta del video). Si el nombre del video tiene temporada y episodio (s1-e3, S0
 un episodio de esa serie; si no, la película. Busca primero por el hash del archivo (el mismo
 video, así que casi no hay desfase) y, si no hay, por el IMDb ID. En ese caso baja hasta CANDIDATOS, uno por cada fuente (TV, WEB, DVD...),
 porque las versiones de una misma fuente tienen los mismos cortes, y se queda con el que, ya
-sincronizado, mejor coincide con la voz. La clave va en $AUDIOTRANS_DATOS/opensubtitles (api_key=..., y si hace
+sincronizado, mejor coincide con la voz. Antes descarta los que tienen el texto mal hecho
+(palabras y signos pegados: "year,it's", "eveningI"), si hay alguno limpio: el más descargado
+de White Collar 1x02 tenía así el 38 % de las líneas, y el traductor las destrozaba ("a trainat
+union square" → "una plaza del sindicato del trenat"). La coincidencia con la voz no lo nota.
+También el del mismo archivo (por hash) se cambia por otro si está mal hecho. La clave va en $AUDIOTRANS_DATOS/opensubtitles (api_key=..., y si hace
 falta usuario=... y contrasena=... para la cuota de descargas).
 """
 import json
@@ -25,6 +29,9 @@ API = "https://api.opensubtitles.com/api/v1"
 AGENTE = "audiotrans v1.0"  # OpenSubtitles rechaza peticiones sin User-Agent propio
 CONFIG = os.path.join(DATOS, "opensubtitles")
 CANDIDATOS = 3  # cada uno gasta una descarga de la cuota diaria
+# Fracción de líneas con palabras o signos pegados a partir de la cual un .srt está mal hecho.
+# En 1x02: 38 % y 36 % en las dos versiones HDTV, 0.1 % y 0.3 % en las de DVD
+DEFECTUOSO = 0.05
 
 
 def _config():
@@ -130,6 +137,30 @@ def candidatos(ordenados):
     return elegidos[:CANDIDATOS]
 
 
+def defectos(bloques):
+    """Fracción de líneas con un signo pegado a la palabra siguiente ("year,it's") o con dos
+    palabras unidas por la mayúscula ("eveningI"). Los números ("1,500") no cuentan."""
+    if not bloques:
+        return 0.0
+    pegadas = sum(bool(re.search(r"[a-z][,.?!][A-Za-z]|[a-z]{2}[A-Z]", re.sub(r"<[^>]+>|\{[^}]*\}", "", b[2])))
+                  for b in bloques)
+    return pegadas / len(bloques)
+
+
+def defectos_de(ruta):
+    """defectos() de un .srt, sin importar sincronizar (numpy y el VAD): para practice --status."""
+    texto = open(ruta, encoding="utf-8-sig", errors="replace").read().replace("\r", "")
+    return defectos([(0, 0, b.split("-->", 1)[1].partition("\n")[2])
+                     for b in re.split(r"\n\s*\n", texto.strip()) if "-->" in b])
+
+
+def elegir(versiones):
+    """Índice de la mejor de [(defectos, coincidencia con la voz)]: la que mejor coincide entre
+    las bien hechas, o entre todas si ninguna lo está."""
+    limpias = [i for i, (d, _) in enumerate(versiones) if d <= DEFECTUOSO] or range(len(versiones))
+    return max(limpias, key=lambda i: versiones[i][1])
+
+
 def describir(r):
     a = r["attributes"]
     d = a.get("feature_details") or {}
@@ -153,41 +184,66 @@ def descargar(video, salida, imdb, idioma="en"):
     temporada, episodio = episodio_de(video)
     resultados = [r for r in buscar(config, languages=idioma, moviehash=hash_video(video))
                   if r["attributes"].get("moviehash_match") and de_la_obra(r, imdb)]
-    ordenados = ordenar(resultados, temporada, episodio)
-    if ordenados:
-        elegidos = ordenados[:1]  # del mismo archivo: no hace falta comparar
-    elif temporada is not None:
-        resultados = buscar(config, languages=idioma, parent_imdb_id=imdb, season_number=temporada, episode_number=episodio)
-        elegidos = candidatos(ordenar(resultados, temporada, episodio))
-    else:
-        elegidos = candidatos(ordenar(buscar(config, languages=idioma, imdb_id=imdb), None, None))
-    if not elegidos:
-        etiqueta = f"tt{imdb:07d}" + (f" {temporada}x{episodio:02d}" if temporada is not None else "")
-        sys.exit(f"subtitulos: no encontré subtítulos en '{idioma}' para {etiqueta}")
+    del_archivo = ordenar(resultados, temporada, episodio)[:1]
 
     token = None
     if config.get("usuario") and config.get("contrasena"):
         token = _pedir("/login", config, {"username": config["usuario"], "password": config["contrasena"]})["token"]
-    if len(elegidos) == 1:
-        print(f"  {describir(elegidos[0])}", file=sys.stderr)
-        quedan = bajar(elegidos[0], salida, config, token)
-    else:
-        from . import sincronizar  # numpy y el VAD solo hacen falta para comparar
+    from . import sincronizar  # numpy y el VAD solo hacen falta para medir
 
-        print(f"  comparando {len(elegidos)} versiones con el audio...", file=sys.stderr)
-        voz = sincronizar.senal_voz(video)
-        with tempfile.TemporaryDirectory() as tmp:
-            puntos = []
-            for n, r in enumerate(elegidos):
-                ruta = os.path.join(tmp, f"{n}.srt")
-                quedan = bajar(r, ruta, config, token)
-                ajustados, _ = sincronizar.ajustar(sincronizar.leer_srt(ruta), voz)
-                puntos.append(sincronizar.coincidencia(voz, ajustados))
-                print(f"  {puntos[-1]:.3f}  {describir(r)}", file=sys.stderr)
-            mejor = max(range(len(elegidos)), key=puntos.__getitem__)
-            print(f"  elegido: {elegidos[mejor]['attributes'].get('release')}", file=sys.stderr)
-            with open(os.path.join(tmp, f"{mejor}.srt"), "rb") as f, open(salida, "wb") as g:
-                g.write(f.read())
+    with tempfile.TemporaryDirectory() as tmp:
+        bajados = []  # (resultado, ruta, bloques)
+
+        def bajar_a_tmp(r):
+            ruta = os.path.join(tmp, f"{len(bajados)}.srt")
+            quedan = bajar(r, ruta, config, token)
+            bajados.append((r, ruta, sincronizar.leer_srt(ruta)))
+            return quedan
+
+        quedan = None
+        if del_archivo:
+            # Del mismo archivo casi no hay desfase: no hace falta comparar, salvo que esté mal hecho
+            quedan = bajar_a_tmp(del_archivo[0])
+            d = defectos(bajados[0][2])
+            print(f"  {describir(del_archivo[0])}", file=sys.stderr)
+            if d <= DEFECTUOSO:
+                return _copiar(bajados[0][1], salida, quedan)
+            print(f"  tiene {100 * d:.0f} % de líneas con palabras pegadas: busco otras versiones", file=sys.stderr)
+        if temporada is not None:
+            resultados = buscar(config, languages=idioma, parent_imdb_id=imdb, season_number=temporada, episode_number=episodio)
+        else:
+            resultados = buscar(config, languages=idioma, imdb_id=imdb)
+        ya = {r["attributes"]["files"][0]["file_id"] for r, _, _ in bajados}
+        for r in candidatos([r for r in ordenar(resultados, temporada, episodio)
+                             if r["attributes"]["files"][0]["file_id"] not in ya]):
+            quedan = bajar_a_tmp(r)
+        if not bajados:
+            etiqueta = f"tt{imdb:07d}" + (f" {temporada}x{episodio:02d}" if temporada is not None else "")
+            sys.exit(f"subtitulos: no encontré subtítulos en '{idioma}' para {etiqueta}")
+
+        if len(bajados) == 1:
+            versiones = [(defectos(bajados[0][2]), 0.0)]
+            print(f"  {describir(bajados[0][0])}", file=sys.stderr)
+        else:
+            print(f"  comparando {len(bajados)} versiones con el audio...", file=sys.stderr)
+            voz = sincronizar.senal_voz(video)
+            versiones = []
+            for r, _, bloques in bajados:
+                ajustados, _ = sincronizar.ajustar(bloques, voz)
+                versiones.append((defectos(bloques), sincronizar.coincidencia(voz, ajustados)))
+                print(f"  {versiones[-1][1]:.3f}  {100 * versiones[-1][0]:4.1f} % pegadas  {describir(r)}", file=sys.stderr)
+        mejor = elegir(versiones)
+        if versiones[mejor][0] > DEFECTUOSO:
+            print(f"  aviso: todas tienen palabras pegadas ({100 * versiones[mejor][0]:.0f} % de las líneas en la elegida)",
+                  file=sys.stderr)
+        if len(bajados) > 1:
+            print(f"  elegido: {bajados[mejor][0]['attributes'].get('release')}", file=sys.stderr)
+        return _copiar(bajados[mejor][1], salida, quedan)
+
+
+def _copiar(ruta, salida, quedan):
+    with open(ruta, "rb") as f, open(salida, "wb") as g:
+        g.write(f.read())
     if quedan is not None:
         print(f"  quedan {quedan} descargas hoy", file=sys.stderr)
 

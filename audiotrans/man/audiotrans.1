@@ -166,6 +166,9 @@ si no existe lo baja de OpenSubtitles en el idioma original
 de IMDb, que es obligatorio para bajarlos. En ese caso baja
 hasta 3 versiones, una por fuente (TV, WEB, DVD), porque las de TV suelen tener
 otros cortes, y se queda con la que mejor coincide con la voz ya sincronizada.
+Antes descarta las que tienen más del 5 % de las líneas con palabras o signos
+pegados ("year,it's"), si hay alguna limpia, y lo mismo hace con la del mismo
+archivo.
 También con \fB\-\-prepare\fR.
 La primera vez que se abre un episodio, \fIsincronizar.py\fR sincroniza los
 subtítulos con el audio por tramos (~15 s). Detecta dónde hay voz y, en
@@ -188,7 +191,8 @@ saltan. Al abrir un episodio preparado no se usa CPU extra.
 \fBpractice \-\-status\fR \fIvideo\fR... dice de cada episodio si ya está
 preparado (y qué porcentaje de líneas quedó con el tiempo exacto), solo
 sincronizado o sin preparar, sin procesar nada; sin argumentos, los de la
-carpeta actual. En los dos, una carpeta se cambia por sus videos, y los archivos
+carpeta actual. También avisa si un \fI.srt\fR tiene palabras pegadas; para
+bajar otro basta con moverlo y abrir el episodio. En los dos, una carpeta se cambia por sus videos, y los archivos
 que no son video (\fI.srt\fR, \fItt...\fR) se saltan, así que
 \fBpractice \-\-status *\fR también sirve.
 .PP
@@ -202,7 +206,8 @@ agente o el usuario con \fBpython \-m audiotrans.traducciones\fR (\fBbuscar\fR
 por texto o por minuto, \fBrevisar\fR, que muestra cada original junto a su
 traducción automática para corregir solo las malas, \fBexportar\fR,
 \fBponer\fR, \fBquitar\fR y \fBvalidar\fR). Si el \fI.srt\fR cambia, las filas cuyo texto original ya no
-coincide se ignoran.
+coincide se ignoran; \fBmigrar\fR pasa al nuevo las que tienen una línea con el
+mismo texto.
 .PP
 El texto se quita al reanudar la reproducción. \fBpractice saved\fR lista
 las dudas guardadas. Las teclas r, R, t y d reemplazan, solo en esta sesión,

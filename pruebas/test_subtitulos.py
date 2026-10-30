@@ -45,3 +45,26 @@ def test_candidatos_uno_por_fuente_y_desconocidas_al_final():
 def test_de_la_obra():
     assert s.de_la_obra(_r("x"), 1358522)
     assert not s.de_la_obra(_r("x"), 211915)
+
+
+def test_defectos_cuenta_palabras_y_signos_pegados():
+    # Líneas reales del .srt HDTV de White Collar 1x02; los números con coma no cuentan
+    pegadas = ["Every year -- every\nyear,it's like this.", "I have a show this eveningI\nmust be prepared for.",
+               "<i>Bethesda fountain.That's 300 yards.</i>"]
+    bien = ["1,500 square feet, service", "Finally squeezed into a train\nat Union Square.", "Mr. Caffrey?"]
+    assert s.defectos([(0, 0, t) for t in pegadas + bien]) == 0.5
+    assert s.defectos([]) == 0.0
+
+
+def test_defectos_de_un_archivo(tmp_path):
+    ruta = tmp_path / "a.srt"
+    ruta.write_text("1\n00:00:01,000 --> 00:00:02,000\nyear,it's\n\n2\n00:00:03,000 --> 00:00:04,000\nOkay.\n")
+    assert s.defectos_de(ruta) == 0.5
+
+
+def test_elegir_prefiere_las_bien_hechas():
+    # La pegada coincide mejor con la voz, pero hay una limpia (1x02: 0.559 contra 0.561 y 0.612)
+    assert s.elegir([(0.38, 0.70), (0.001, 0.561), (0.003, 0.612)]) == 2
+    assert s.elegir([(0.38, 0.70), (0.001, 0.561)]) == 1
+    # Si todas están mal hechas, la que mejor coincide
+    assert s.elegir([(0.38, 0.559), (0.36, 0.60)]) == 1

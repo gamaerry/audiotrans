@@ -7,6 +7,7 @@ Uso: python -m audiotrans.traducciones revisar <video> [<desde> <hasta>] [-<dest
      python -m audiotrans.traducciones poner <video> - [-<destino>]    (líneas "número<TAB>traducción")
      python -m audiotrans.traducciones quitar <video> <número> [-<destino>]
      python -m audiotrans.traducciones validar <video> [-<destino>]
+     python -m audiotrans.traducciones migrar <video> [-<destino>]
 
 OPUS-MT y Google traducen frase por frase y no entienden los modismos ("Cowboy up" sale
 "Vaquero arriba"). Un agente (o el usuario) puede escribir la traducción buena de esas líneas
@@ -18,6 +19,10 @@ editó o se cambió por otra versión), esa fila se ignora y se traduce como sie
 
 El destino sale del archivo tt<ID>.<original>-<destino> de la carpeta (sin él, es). El minuto
 de buscar y exportar es el que se ve en mpv: el del .srt sincronizado de la caché de practice.
+
+migrar sirve después de cambiar el .srt por otra versión: cada fila que ya no coincide pasa
+al bloque del .srt nuevo con el mismo texto (sin contar espacios ni signos), el más cercano
+en proporción; las que no tienen un bloque igual se quitan.
 
 revisar muestra, de las líneas que aún no tienen traducción revisada, el original y la
 traducción automática que mostraría y (con el modelo local, en un lote). Así un agente solo
@@ -133,6 +138,27 @@ def problemas(bloques, filas):
     return malas
 
 
+def migrar(bloques, filas):
+    """(filas emparejadas con los bloques nuevos, cuántas se perdieron)."""
+    nuevas, viejo_total = {}, max(filas, default=1)
+    por_texto = {}
+    for n, b in enumerate(bloques, 1):
+        por_texto.setdefault(normalizar(b[2]), []).append(n)
+    perdidas = 0
+    for n, (original, traduccion) in sorted(filas.items()):
+        if 1 <= n <= len(bloques) and normalizar(original) == normalizar(bloques[n - 1][2]):
+            nuevas[n] = (una_linea(bloques[n - 1][2]), traduccion)
+            continue
+        # Las líneas repetidas ("Yeah.") se mandan a la de posición más parecida en el episodio
+        libres = [m for m in por_texto.get(normalizar(original), []) if m not in nuevas]
+        if not libres:
+            perdidas += 1
+            continue
+        m = min(libres, key=lambda m: abs(m / len(bloques) - n / viejo_total))
+        nuevas[m] = (una_linea(bloques[m - 1][2]), traduccion)
+    return nuevas, perdidas
+
+
 def fila(n, bloque, filas, t):
     return f"{n}\t{minuto(t)}\t{una_linea(bloque[2])}\t{filas.get(n, (None, ''))[1]}"
 
@@ -207,6 +233,10 @@ def main(args):
         for n in resto:
             filas.pop(int(n), None)
         escribir_tsv(ruta, filas)
+    elif accion == "migrar":
+        nuevas, perdidas = migrar(bloques, filas)
+        escribir_tsv(ruta, nuevas)
+        print(f"{len(nuevas)} traducciones pasaron al .srt actual y {perdidas} no tenían una línea igual ({ruta})")
     elif accion == "validar":
         malas = problemas(bloques, filas)
         for n, motivo in malas:

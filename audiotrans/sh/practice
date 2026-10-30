@@ -50,7 +50,8 @@ Whisper (~6 min de CPU por episodio, con prioridad baja), para que r
 repita con el tiempo exacto. Conviene hacerlo antes, cuando no uses la
 computadora, p. ej.: practice --prepare ~/Videos/white-collar
 Todo se guarda en ~/.cache/audiotrans/sincronizados/. --status dice qué
-episodios ya están preparados (sin argumentos, los de la carpeta actual).
+episodios ya están preparados (sin argumentos, los de la carpeta actual) y
+avisa si un .srt tiene palabras pegadas.
 Con una carpeta se toman sus videos, y los archivos que no son video se saltan.
 
 La traducción va al idioma de la carpeta; para otro, p. ej. -fr. "practice saved"
@@ -192,6 +193,14 @@ print(f"{round(100 * exactas / max(len(lineas), 1))} % de las líneas exactas")'
         else
             printf '%-14s %s\n' "sin preparar" "$video"
         fi
+        # Un .srt mal hecho (bajado antes de que subtitulos.py lo revisara) estorba al leer y al traducir
+        "$python" -c '
+import sys
+from audiotrans.subtitulos import DEFECTUOSO, defectos_de
+d = defectos_de(sys.argv[1])
+if d > DEFECTUOSO:
+    ruta = sys.argv[1]
+    print(" " * 14, f"↳ el .srt tiene {100 * d:.0f} % de líneas con palabras pegadas; para bajar otro: mv {ruta} {ruta}.malo")' "$srt" || true
     done
     echo "$listos de ${#lista[@]} preparados"
 }
