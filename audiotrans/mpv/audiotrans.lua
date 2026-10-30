@@ -4,7 +4,7 @@
 --   e  ir a la línea anterior, por si r no cayó en la que se quería (cada e, una más atrás)
 --   E  ir a la línea siguiente (lo contrario de e)
 --   t  mostrar el texto original de la línea
---   y  mostrar la traducción (la revisada del .tsv del episodio, si la hay)
+--   y  mostrar la traducción (la revisada del .tsv del episodio o, si no, la de la caché)
 --   d  guardar la línea como duda, con su audio (para repasar en Anki)
 --   c  seguir viendo con los subtítulos de mpv visibles (otra vez c para quitarlos)
 --   C  seguir viendo con los subtítulos y su traducción debajo (otra vez C para quitarlos)
@@ -176,6 +176,15 @@ local function actualizar_dobles(forzar)
     overlay_dobles:update()
 end
 
+local function pedir_a_la_cache(numeros, listo)
+    -- números de bloque (pos) → "número<TAB>traducción" de las que se pudieron traducir
+    mp.command_native_async({
+        name = "subprocess", capture_stdout = true, playback_only = false,
+        stdin_data = table.concat(numeros, "\n") .. "\n",
+        args = { opts.python, "-m", "audiotrans.traducciones", "automaticas", mp.get_property("path"), "-" .. opts.destino },
+    }, listo)
+end
+
 local function pedir_automaticas(tandas)
     -- traducciones.py devuelve las que ya están en su caché (las que calculó revisar al mejorar
     -- el episodio, o un C anterior) y traduce en un lote solo las demás, que también guarda.
@@ -188,11 +197,7 @@ local function pedir_automaticas(tandas)
         por_pos[lineas[i].pos] = i
         table.insert(numeros, lineas[i].pos)
     end
-    mp.command_native_async({
-        name = "subprocess", capture_stdout = true, playback_only = false,
-        stdin_data = table.concat(numeros, "\n") .. "\n",
-        args = { opts.python, "-m", "audiotrans.traducciones", "automaticas", mp.get_property("path"), "-" .. opts.destino },
-    }, function(ok, r)
+    pedir_a_la_cache(numeros, function(ok, r)
         if not (ok and r.status == 0) then
             return mp.osd_message("No se pudieron traducir los subtítulos", 3)
         end
@@ -322,12 +327,12 @@ local function mostrar_traduccion()
     end
     mostrado.traduccion = "…"
     dibujar()
-    mp.command_native_async({
-        name = "subprocess", capture_stdout = true, playback_only = false,
-        args = { opts.python, "-m", "audiotrans.texto", opts.destino, "-" .. opts.origen, (lineas[i].texto:gsub("\n", " ")) },
-    }, function(ok, r)
+    -- De la caché de traducciones.py si ya se calculó (revisar o C); si no, la traduce y la guarda
+    pedir_a_la_cache({ lineas[i].pos }, function(ok, r)
+        local traducida = ok and r.status == 0 and r.stdout:match("^%d+\t([^\n]+)")
+        if traducida then lineas[i].automatica = traducida end
         if foco ~= i or not mostrado.original then return end  -- ya se cambió de línea
-        mostrado.traduccion = (ok and r.status == 0) and r.stdout:gsub("%s+$", "") or "(no se pudo traducir)"
+        mostrado.traduccion = traducida or "(no se pudo traducir)"
         dibujar()
     end)
 end
@@ -343,7 +348,7 @@ local function guardar_duda()
                  mp.get_property("path"), tostring(l.inicio + retraso()), tostring(l.fin + retraso()),
                  l.texto, opts.origen, opts.destino,
                  tostring(l.inicio + retraso() - antes), tostring(l.fin + retraso() + despues),
-                 l.traduccion },  -- sin traducción revisada, dudas.py traduce como siempre
+                 l.traduccion or l.automatica },  -- sin ninguna, dudas.py traduce como siempre
     }, function(ok, r)
         if ok and r.status == 0 then
             mp.osd_message("✓ Duda guardada: " .. r.stdout:gsub("%s+$", ""), 3)
