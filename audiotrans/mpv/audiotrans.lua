@@ -4,7 +4,7 @@
 --   e  ir a la línea anterior, por si r no cayó en la que se quería (cada e, una más atrás)
 --   E  ir a la línea siguiente (lo contrario de e)
 --   t  mostrar el texto original de la línea
---   y  mostrar la traducción
+--   y  mostrar la traducción (la revisada del .tsv del episodio, si la hay)
 --   d  guardar la línea como duda, con su audio (para repasar en Anki)
 --   c  seguir viendo con los subtítulos de mpv visibles (otra vez c para quitarlos)
 --   q  quitar la repetición o el texto y seguir viendo normal (ya no cierra mpv: eso queda en Q)
@@ -14,7 +14,7 @@ local mp = require "mp"
 local utils = require "mp.utils"
 local options = require "mp.options"
 
-local opts = { srt = "", json = "", python = "", destino = "es", origen = "en" }
+local opts = { srt = "", json = "", traducciones = "", python = "", destino = "es", origen = "en" }
 options.read_options(opts, "audiotrans")
 
 -- Cada línea del .srt tiene su propio error de tiempo, aunque esté sincronizada. Medido con
@@ -29,7 +29,8 @@ local MARGEN_INICIO_EXACTO = 0.5
 local MARGEN_FIN_EXACTO = 0.4
 local LENTO = 0.75
 
-local lineas = {}        -- { inicio = s, fin = s, texto = "...", inicio_exacto, fin_exacto } (tiempo del .srt)
+local lineas = {}        -- { inicio = s, fin = s, texto = "...", pos, inicio_exacto, fin_exacto, traduccion }
+                         -- (tiempo del .srt; pos: número de bloque en el .srt original)
 local foco = nil         -- índice de la línea con la que se está trabajando
 local pausar_en = nil    -- tiempo (del video) en el que pausar al terminar una repetición
 local velocidad = nil    -- velocidad de antes de una repetición lenta, para restaurarla
@@ -52,13 +53,17 @@ local function cargar_srt(ruta)
     if not f then return false end
     local contenido = f:read("*a"):gsub("^\239\187\191", ""):gsub("\r", "")  -- quita BOM y CRLF
     f:close()
+    local pos = 0
     for bloque in (contenido .. "\n\n"):gmatch("(.-)\n\n+") do
         local h1, m1, s1, ms1, h2, m2, s2, ms2, resto = bloque:match(
             "(%d+):(%d+):(%d+)[,.](%d+)%s*%-%->%s*(%d+):(%d+):(%d+)[,.](%d+)[^\n]*\n?(.*)")
         if h1 then
+            -- sincronizar.py y alinear.py conservan todos los bloques en orden: la posición
+            -- es la misma que en el .srt original, aunque los bloques vacíos se salten
+            pos = pos + 1
             local texto = limpiar(resto)
             if texto ~= "" then
-                table.insert(lineas, { inicio = a_segundos(h1, m1, s1, ms1), fin = a_segundos(h2, m2, s2, ms2), texto = texto })
+                table.insert(lineas, { inicio = a_segundos(h1, m1, s1, ms1), fin = a_segundos(h2, m2, s2, ms2), texto = texto, pos = pos })
             end
         end
     end
@@ -72,11 +77,39 @@ local function cargar_json(ruta)
     if not f then return false end
     local datos = utils.parse_json(f:read("*a"))
     f:close()
-    for _, l in ipairs((datos and datos.lineas) or {}) do
+    for pos, l in ipairs((datos and datos.lineas) or {}) do
+        l.pos = pos
         if l.texto ~= "" then table.insert(lineas, l) end
     end
     table.sort(lineas, function(a, b) return a.inicio < b.inicio end)
     return #lineas > 0
+end
+
+local function normalizar(texto)
+    -- Lo mismo que normalizar() de audiotrans/traducciones.py: solo letras y números ASCII
+    return (limpiar(texto):lower():gsub("[^a-z0-9]", ""))
+end
+
+local function cargar_traducciones(ruta)
+    -- <video>.<destino>.tsv (audiotrans/traducciones.py): número de bloque, original y traducción.
+    -- Una fila cuyo original ya no coincide con la línea (el .srt cambió) se ignora
+    local f = io.open(ruta, "r")
+    if not f then return 0 end
+    local filas = {}
+    for linea in f:read("*a"):gmatch("[^\n]+") do
+        local n, original, traduccion = linea:match("^(%d+)\t([^\t]*)\t(.-)%s*$")
+        if n and traduccion ~= "" then filas[tonumber(n)] = { original = original, traduccion = traduccion } end
+    end
+    f:close()
+    local usadas = 0
+    for _, l in ipairs(lineas) do
+        local fila = l.pos and filas[l.pos]
+        if fila and normalizar(fila.original) == normalizar(l.texto) then
+            l.traduccion = fila.traduccion
+            usadas = usadas + 1
+        end
+    end
+    return usadas
 end
 
 local function margenes(l)
@@ -210,6 +243,10 @@ local function mostrar_traduccion()
     terminar_repeticion()
     mp.set_property_bool("pause", true)
     mostrado.original = lineas[i].texto
+    if lineas[i].traduccion then
+        mostrado.traduccion = lineas[i].traduccion
+        return dibujar()
+    end
     mostrado.traduccion = "…"
     dibujar()
     mp.command_native_async({
@@ -232,7 +269,8 @@ local function guardar_duda()
         args = { opts.python, "-m", "audiotrans.dudas", "guardar",
                  mp.get_property("path"), tostring(l.inicio + retraso()), tostring(l.fin + retraso()),
                  l.texto, opts.origen, opts.destino,
-                 tostring(l.inicio + retraso() - antes), tostring(l.fin + retraso() + despues) },
+                 tostring(l.inicio + retraso() - antes), tostring(l.fin + retraso() + despues),
+                 l.traduccion },  -- sin traducción revisada, dudas.py traduce como siempre
     }, function(ok, r)
         if ok and r.status == 0 then
             mp.osd_message("✓ Duda guardada: " .. r.stdout:gsub("%s+$", ""), 3)
@@ -274,6 +312,7 @@ end
 local cargado
 if opts.json ~= "" then cargado = cargar_json(opts.json) else cargado = opts.srt ~= "" and cargar_srt(opts.srt) end
 if cargado then
+    local revisadas = opts.traducciones ~= "" and cargar_traducciones(opts.traducciones) or 0
     mp.add_forced_key_binding("r", "audiotrans-repetir", function() repetir(foco or linea_reciente()) end)
     mp.add_forced_key_binding("R", "audiotrans-lento", function() repetir(foco or linea_reciente(), true) end)
     mp.add_forced_key_binding("e", "audiotrans-anterior", repetir_anterior)
@@ -286,6 +325,8 @@ if cargado then
     local exactas = 0
     for _, l in ipairs(lineas) do if l.inicio_exacto and l.fin_exacto then exactas = exactas + 1 end end
     local preparado = opts.json ~= "" and string.format(" (%d %% con tiempo exacto)", math.floor(100 * exactas / #lineas)) or ""
+    if revisadas > 0 then preparado = preparado .. string.format(" · %d traducciones revisadas", revisadas) end
+    mp.msg.verbose(revisadas .. " traducciones revisadas")
     mp.register_event("file-loaded", function()
         mp.osd_message(#lineas .. " líneas" .. preparado .. " · r repetir · R más lento · e/E anterior/siguiente · t texto · y traducción · d guardar duda · c con subtítulos · q seguir normal", 6)
     end)

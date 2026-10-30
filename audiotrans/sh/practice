@@ -23,7 +23,7 @@ Abre el video en mpv con los subtítulos ocultos. Cuando no entiendas algo:
   e  ir a la línea anterior, si r no cayó en la que querías (cada e, una más)
   E  ir a la línea siguiente
   t  mostrar el texto original de esa línea
-  y  mostrar la traducción
+  y  mostrar la traducción (la revisada de <video>.<destino>.tsv, si la hay)
   d  guardar la línea como duda, con su audio
   c  seguir viendo con los subtítulos (otra vez c para quitarlos)
   q  quitar la repetición o el texto y seguir viendo normal (para salir: Q)
@@ -55,6 +55,10 @@ Con una carpeta se toman sus videos, y los archivos que no son video se saltan.
 
 La traducción va al idioma de la carpeta; para otro, p. ej. -fr. "practice saved"
 lista las dudas guardadas (en ~/.local/share/audiotrans/dudas/).
+
+Los modismos ("Cowboy up") se traducen literal. Un agente o tú pueden escribir la
+traducción buena de esas líneas en <video>.<destino>.tsv, junto al video (ver
+"python -m audiotrans.traducciones"), e y y d la usan en vez de traducir.
 EOF
 }
 
@@ -216,6 +220,10 @@ destino="${destino:-$destino_carpeta}"
 [[ -n "$srt" ]] || { descargar_srt "$video" || true; srt="${video%.*}.srt"; }
 [[ -f "$srt" ]] || { echo "practice: no encuentro los subtítulos: $srt" >&2; exit 2; }
 
+# Traducciones revisadas (python -m audiotrans.traducciones): y las usa en vez de traducir
+traducciones="${video%.*}.$destino.tsv"
+[[ -f "$traducciones" ]] || traducciones=""
+
 json=""
 if $sincronizar; then
     base="$(base_de "$video" "$srt")"
@@ -229,7 +237,7 @@ if $sincronizar; then
 fi
 
 # Las comas separan opciones en script-opts, así que las rutas no deben tenerlas
-for ruta in "$srt" "$json" "$python"; do
+for ruta in "$srt" "$json" "$traducciones" "$python"; do
     [[ "$ruta" != *,* ]] || { echo "practice: la ruta no puede tener comas: $ruta" >&2; exit 2; }
 done
 
@@ -237,5 +245,5 @@ done
 exec mpv --sub-file="$srt" --sub-visibility=no \
     --watch-later-options-remove=speed --watch-later-options-remove=sub-visibility \
     --script="$lua" \
-    --script-opts="audiotrans-srt=$(readlink -f "$srt"),audiotrans-json=${json:+$(readlink -f "$json")},audiotrans-python=$python,audiotrans-origen=$original,audiotrans-destino=$destino" \
+    --script-opts="audiotrans-srt=$(readlink -f "$srt"),audiotrans-json=${json:+$(readlink -f "$json")},audiotrans-traducciones=${traducciones:+$(readlink -f "$traducciones")},audiotrans-python=$python,audiotrans-origen=$original,audiotrans-destino=$destino" \
     "$video"

@@ -1,8 +1,9 @@
 """Registro de las dudas de listening: cada línea guardada con su audio, para repasarla después.
 
-Uso: python -m audiotrans.dudas guardar <video> <inicio> <fin> <texto> <origen> <destino> [<inicio audio> <fin audio>]
+Uso: python -m audiotrans.dudas guardar <video> <inicio> <fin> <texto> <origen> <destino> [<inicio audio> <fin audio> [<traducción>]]
      python -m audiotrans.dudas listar
-Las dudas quedan en $AUDIOTRANS_DATOS/dudas/: dudas.jsonl y un .mp3 por línea.
+Las dudas quedan en $AUDIOTRANS_DATOS/dudas/: dudas.jsonl y un .mp3 por línea. Sin <traducción>
+(la revisada del episodio, ver audiotrans/traducciones.py), se traduce aquí.
 """
 import datetime
 import json
@@ -21,7 +22,7 @@ MARGEN_INICIO = 0.9
 MARGEN_FIN = 0.5
 
 
-def guardar(video, inicio, fin, texto, origen, destino, audio_inicio=None, audio_fin=None):
+def guardar(video, inicio, fin, texto, origen, destino, audio_inicio=None, audio_fin=None, traduccion=None):
     inicio, fin = float(inicio), float(fin)
     audio_inicio = max(0.0, float(audio_inicio) if audio_inicio else inicio - MARGEN_INICIO)
     audio_fin = float(audio_fin) if audio_fin else fin + MARGEN_FIN
@@ -42,7 +43,7 @@ def guardar(video, inicio, fin, texto, origen, destino, audio_inicio=None, audio
         "inicio": round(inicio, 2),
         "fin": round(fin, 2),
         "texto": texto,
-        "traduccion": traducir(texto.replace("\n", " "), origen, destino),
+        "traduccion": traduccion or traducir(texto.replace("\n", " "), origen, destino),
         "audio": audio,
     }
     with open(REGISTRO, "a") as f:
@@ -66,7 +67,7 @@ def listar():
 
 if __name__ == "__main__":
     accion = sys.argv[1] if len(sys.argv) > 1 else ""
-    if accion == "guardar" and len(sys.argv) in (8, 10):
+    if accion == "guardar" and len(sys.argv) in (8, 10, 11):
         guardar(*sys.argv[2:])
     elif accion == "listar":
         listar()

@@ -128,7 +128,8 @@ Lo contrario de \fBe\fR: repite la línea siguiente.
 Pausa y muestra el texto original de la línea.
 .TP
 .B y
-Pausa y muestra además la traducción (con \fBtextrans\fR).
+Pausa y muestra además la traducción: la revisada del episodio si la hay (ver
+abajo) y, si no, la de \fBtextrans\fR.
 .TP
 .B d
 Guarda la línea como duda: el texto, la traducción y el fragmento de audio
@@ -190,6 +191,19 @@ sincronizado o sin preparar, sin procesar nada; sin argumentos, los de la
 carpeta actual. En los dos, una carpeta se cambia por sus videos, y los archivos
 que no son video (\fI.srt\fR, \fItt...\fR) se saltan, así que
 \fBpractice \-\-status *\fR también sirve.
+.PP
+Los traductores van frase por frase y traducen literal los modismos poco
+comunes ("Cowboy up" sale "Vaquero arriba"). Para esas líneas,
+\fIvideo\fR\fB.\fR\fIdestino\fR\fB.tsv\fR junto al video guarda traducciones
+revisadas, que \fBy\fR y \fBd\fR usan en vez de traducir: una fila por línea,
+con el número de bloque del \fI.srt\fR, el texto original y la traducción,
+separados por tabuladores. Puede tener solo algunas líneas. Lo escribe un
+agente o el usuario con \fBpython \-m audiotrans.traducciones\fR (\fBbuscar\fR
+por texto o por minuto, \fBrevisar\fR, que muestra cada original junto a su
+traducción automática para corregir solo las malas, \fBexportar\fR,
+\fBponer\fR, \fBquitar\fR y \fBvalidar\fR). Si el \fI.srt\fR cambia, las filas cuyo texto original ya no
+coincide se ignoran.
+.PP
 El texto se quita al reanudar la reproducción. \fBpractice saved\fR lista
 las dudas guardadas. Las teclas r, R, t y d reemplazan, solo en esta sesión,
 las de mpv para mover los subtítulos y desentrelazar.
@@ -321,6 +335,10 @@ Subtítulos ya sincronizados de \fBpractice\fR (\fI.srt\fR), y los de
 \fB\-\-prepare\fR (\fI.exacto.srt\fR y \fI.json\fR, que dice qué líneas tienen
 tiempo exacto). Uno por combinación de video y \fI.srt\fR; se vuelven a generar
 si alguno cambia o si cambia cómo se procesan. Se pueden borrar.
+.TP
+.IR video ".srt, " video . destino .tsv
+Subtítulos originales del episodio, junto al video, y sus traducciones
+revisadas (opcional).
 .TP
 .I ~/.local/share/audiotrans/dudas/
 Dudas de \fBpractice\fR: \fIdudas.jsonl\fR (una por línea: episodio, tiempos,

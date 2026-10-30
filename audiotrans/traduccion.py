@@ -39,12 +39,21 @@ def precargar(origen, destino):
         _modelo(f"{origen}-{destino}")
 
 
-def _local(texto, origen, destino):
-    traductor, sp_origen, sp_destino = _modelo(f"{origen}-{destino}")
+def _oraciones(texto):
     # OPUS-MT se entrenó con oraciones sueltas: se traducen por separado y en un solo lote
-    oraciones = [o for o in re.split(r"(?<=[.!?…])\s+", texto.strip()) if o]
-    r = traductor.translate_batch([sp_origen.encode(o, out_type=str) for o in oraciones], beam_size=4)
-    return " ".join(sp_destino.decode(x.hypotheses[0]) for x in r)
+    return [o for o in re.split(r"(?<=[.!?…])\s+", texto.strip()) if o]
+
+
+def _local(texto, origen, destino):
+    return _local_lote([texto], origen, destino)[0]
+
+
+def _local_lote(textos, origen, destino):
+    traductor, sp_origen, sp_destino = _modelo(f"{origen}-{destino}")
+    partes = [_oraciones(t) for t in textos]
+    r = traductor.translate_batch([sp_origen.encode(o, out_type=str) for p in partes for o in p], beam_size=4)
+    traducidas = iter(sp_destino.decode(x.hypotheses[0]) for x in r)
+    return [" ".join(next(traducidas) for _ in p) for p in partes]
 
 
 def _google(texto, origen, destino):
@@ -61,6 +70,14 @@ def _google(texto, origen, destino):
             capture_output=True, text=True,
         )
         return r.stdout.strip() or None
+
+
+def traducir_lote(textos, origen, destino):
+    """Como traducir() con cada texto, pero con el modelo local van todos en un lote (1x02 completo:
+    18 s). El relleno del lote a veces cambia la variante elegida (2 de 150 líneas en 1x02)."""
+    if origen != destino and not EN_LINEA and hay_local(origen, destino):
+        return _local_lote(textos, origen, destino)
+    return [traducir(t, origen, destino) for t in textos]
 
 
 def traducir(texto, origen, destino, supuesto=None):

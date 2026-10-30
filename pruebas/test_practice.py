@@ -56,3 +56,15 @@ def test_opcion_desconocida(carpeta):
     r = practice(serie, entorno, "--estado")
     assert r.returncode == 2
     assert "opción desconocida" in r.stderr
+
+
+def test_traducciones_revisadas(carpeta):
+    serie, entorno = carpeta
+    r = practice(serie, entorno, "--no-sync", "a.mp4")
+    assert "audiotrans-traducciones=," in r.stdout
+    (serie / "a.es.tsv").write_text("1\tHola\tHello\n")
+    r = practice(serie, entorno, "--no-sync", "a.mp4")
+    assert f"audiotrans-traducciones={serie / 'a.es.tsv'}," in r.stdout
+    # El .tsv es del idioma al que se traduce: con -fr no se usa el de español
+    r = practice(serie, entorno, "--no-sync", "a.mp4", "-fr")
+    assert "audiotrans-traducciones=," in r.stdout

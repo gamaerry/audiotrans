@@ -39,7 +39,7 @@ He didn't say a word, but his eyes told me everything.
 | `e` | pasa a la línea anterior, si `r` no cayó en la que querías (cada `e`, una más atrás) |
 | `E` | pasa a la línea siguiente |
 | `t` | muestra el texto original |
-| `y` | muestra la traducción |
+| `y` | muestra la traducción (la revisada del episodio, si la hay) |
 | `d` | guarda la duda: texto, traducción y fragmento de audio |
 | `c` | sigue viendo con los subtítulos visibles (otra vez `c` para quitarlos) |
 | `q` | quita la repetición o el texto y sigue viendo normal; para salir, `Q` (mpv recuerda dónde ibas) |
@@ -56,6 +56,19 @@ Si el nombre del video tiene temporada y episodio (`s1-e3`, `S01E03`, `t1e3`, `1
 Usa el `.srt` con el mismo nombre que el video. Si no existe, lo baja de [OpenSubtitles](https://www.opensubtitles.com/) en el idioma original: primero busca por el hash del archivo y, si no hay, por el ID de IMDb. Con el ID no se confunden obras con el mismo nombre (buscando "the office" salían mezcladas la británica, la de EE. UU. y la de 2024). En ese caso baja hasta 3 versiones, la más descargada de cada fuente (TV, WEB, DVD), y se queda con la que, ya sincronizada, mejor coincide con la voz (~10 s más). Necesita una clave de API, que se crea en [opensubtitles.com/consumers](https://www.opensubtitles.com/en/consumers) y se guarda como `api_key=<clave>` en `~/.local/share/audiotrans/opensubtitles`; sin iniciar sesión, OpenSubtitles da 100 descargas al día. Muchos `.mkv` traen los subtítulos dentro y se extraen con `ffmpeg -i video.mkv -map 0:s:0 video.srt`. La primera vez que abres un episodio, los subtítulos se **sincronizan con el audio por tramos** (~15 s, se guarda en caché): si el `.srt` es de otra versión del video, cada parte del episodio se corrige por separado. `practice saved` lista lo guardado.
 
 Para que `r` repita con el tiempo exacto, prepara los episodios con anticipación, cuando no uses la computadora: `practice --prepare ~/Videos/serie` (o solo algunos episodios). Whisper ubica cada línea palabra por palabra (~6 min por episodio, con prioridad baja). Al verlos ya no se usa CPU extra. `practice --status` dice cuáles de la carpeta actual ya están preparados; también acepta carpetas o videos sueltos, y salta lo que no es video.
+
+Los dos traductores (el local y Google) van frase por frase y traducen literal los modismos poco comunes: "Cowboy up" sale "Vaquero arriba" en ambos, y "the usual chest pounding", algo como "el golpeteo de pecho habitual". Para esas líneas hay **traducciones revisadas**: un archivo `s1-e1.es.tsv` junto al video, con una fila por línea corregida (número de bloque del `.srt`, texto original y traducción, separados por tabuladores). `y` y `d` las usan en vez de traducir, y el archivo puede tener solo algunas líneas. Lo puede escribir cualquier agente (Claude, Gemini, Codex…), que traduce con el contexto de la escena, con [`audiotrans/traducciones.py`](audiotrans/traducciones.py):
+
+```bash
+python -m audiotrans.traducciones revisar s1-e1.mp4 1 150       # original y traducción automática
+python -m audiotrans.traducciones buscar s1-e1.mp4 17:35        # las líneas de ese minuto en mpv
+python -m audiotrans.traducciones buscar s1-e1.mp4 "cowboy up"
+python -m audiotrans.traducciones poner s1-e1.mp4 271 "¿Tengo que quedarme aquí? Aguántate."
+python -m audiotrans.traducciones exportar s1-e1.mp4 1 120     # para traducir por tramos
+python -m audiotrans.traducciones validar s1-e1.mp4
+```
+
+`revisar` traduce con el modelo local, en un lote, las líneas que aún no están revisadas (~18 s el episodio completo) y muestra cada original junto a lo que mostraría `y`. Así el agente solo escribe las que están mal, en vez de traducir el episodio entero, y gasta muchos menos tokens. Cada fila guarda también el texto original: si el `.srt` cambia (se corrige o se baja otra versión), las filas que ya no coinciden se ignoran y esas líneas se traducen como siempre.
 
 Opciones de los comandos de audio (`audiotrans`):
 
@@ -223,8 +236,9 @@ audiotrans/
   texto.py           textrans: detección en/es por palabras frecuentes
   traduccion.py      local (OPUS-MT) primero, luego Google y luego trans
   instalar.py        audiotrans --setup: traductores y manual
-  mpv/audiotrans.lua teclas r/R/t/y/d dentro de mpv
+  mpv/audiotrans.lua teclas r/R/e/E/t/y/d/c/q dentro de mpv
   dudas.py           guarda las dudas con su fragmento de audio
+  traducciones.py    traducciones revisadas de un episodio (<video>.<destino>.tsv)
   sincronizar.py     sincroniza el .srt con el audio por tramos
   subtitulos.py      baja el .srt de OpenSubtitles si falta
   alinear.py         ubica cada línea palabra por palabra (practice --prepare)
