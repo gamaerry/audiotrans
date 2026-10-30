@@ -12,7 +12,7 @@ Uso: python -m audiotrans.traducciones revisar <video> [<desde> <hasta>] [-<dest
 
 OPUS-MT y Google traducen frase por frase y no entienden los modismos ("Cowboy up" sale
 "Vaquero arriba"). Un agente (o el usuario) puede escribir la traducción buena de esas líneas
-en <video>.<destino>.tsv, junto al video: una fila por línea corregida, con el número de bloque
+en .audiotrans/<video>.<destino>.tsv, en la carpeta del video: una fila por línea corregida, con el número de bloque
 del .srt original, su texto original y la traducción, separados por tabuladores. practice lo
 pasa a mpv, y ahí y la muestra en vez de traducir y d la guarda con la duda. El archivo puede
 tener solo algunas líneas. Si el texto original de una fila ya no coincide con el del .srt (se
@@ -29,7 +29,7 @@ revisar muestra, de las líneas que aún no tienen traducción revisada, el orig
 traducción automática que mostraría y (con el modelo local, en un lote). Así un agente solo
 escribe las que están mal, en vez de traducir el episodio entero.
 
-Las automáticas quedan en <video>.<destino>.automaticas.tsv, junto al video (-google si las dio
+Las automáticas quedan en .audiotrans/<video>.<destino>.automaticas.tsv (-google si las dio
 Google), y revisar y automaticas solo traducen las que no están ahí. automaticas lo usa
 mpv/audiotrans.lua para la tecla C: recibe un número de bloque por renglón y escribe
 número<TAB>traducción, en ese orden.
@@ -46,6 +46,7 @@ from .traduccion import hay_local, traducir_lote
 CACHE = os.path.expanduser("~/.cache/audiotrans/sincronizados")
 PRACTICE = os.path.join(os.path.dirname(__file__), "sh", "practice")
 VENTANA = 6  # s alrededor del minuto que se busca: el tiempo que se lee en mpv es aproximado
+CARPETA = ".audiotrans"  # junto a los videos: los .tsv de cada episodio
 ENCABEZADO = "# número\toriginal\ttraducción\n"
 
 
@@ -84,8 +85,22 @@ def destino_de(video):
     return idiomas_de(video)[1]
 
 
+def en_carpeta(video, sufijo):
+    """<carpeta del video>/.audiotrans/<episodio><sufijo>, como ruta_traducciones() en practice.
+    Un archivo de antes, junto al video, se mueve ahí."""
+    base = os.path.splitext(video)[0]
+    ruta = os.path.join(os.path.dirname(base), CARPETA, os.path.basename(base) + sufijo)
+    if os.path.exists(base + sufijo) and not os.path.exists(ruta):
+        try:
+            os.makedirs(os.path.dirname(ruta), exist_ok=True)
+            os.replace(base + sufijo, ruta)
+        except OSError:
+            return base + sufijo
+    return ruta
+
+
 def ruta_tsv(video, destino):
-    return f"{os.path.splitext(video)[0]}.{destino}.tsv"
+    return en_carpeta(video, f".{destino}.tsv")
 
 
 def leer_tsv(ruta):
@@ -100,6 +115,7 @@ def leer_tsv(ruta):
 
 
 def escribir_tsv(ruta, filas):
+    os.makedirs(os.path.dirname(ruta) or ".", exist_ok=True)
     with open(ruta + ".tmp", "w", encoding="utf-8") as f:
         f.write(ENCABEZADO)
         for n in sorted(filas):
@@ -167,10 +183,10 @@ def migrar(bloques, filas):
 
 
 def ruta_automaticas(video, origen, destino):
-    # Junto al video, porque un agente en sandbox (Codex) solo escribe en esa carpeta. Si el .srt
+    # En la carpeta del video, porque un agente en sandbox (Codex) solo escribe ahí. Si el .srt
     # cambia, las filas que ya no coinciden se ignoran como en el .tsv revisado. Google da otras
     google = traduccion.EN_LINEA or not hay_local(origen, destino)
-    return f"{os.path.splitext(video)[0]}.{destino}.automaticas{'-google' if google else ''}.tsv"
+    return en_carpeta(video, f".{destino}.automaticas{'-google' if google else ''}.tsv")
 
 
 def automaticas(bloques, numeros, ruta, origen, destino):

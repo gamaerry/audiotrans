@@ -62,9 +62,11 @@ def test_traducciones_revisadas(carpeta):
     serie, entorno = carpeta
     r = practice(serie, entorno, "--no-sync", "a.mp4")
     assert "audiotrans-traducciones=," in r.stdout
+    # Uno de antes, junto al video, se mueve a la carpeta oculta
     (serie / "a.es.tsv").write_text("1\tHola\tHello\n")
     r = practice(serie, entorno, "--no-sync", "a.mp4")
-    assert f"audiotrans-traducciones={serie / 'a.es.tsv'}," in r.stdout
+    assert f"audiotrans-traducciones={serie / '.audiotrans' / 'a.es.tsv'}," in r.stdout
+    assert not (serie / "a.es.tsv").exists()
     # El .tsv es del idioma al que se traduce: con -fr no se usa el de español
     r = practice(serie, entorno, "--no-sync", "a.mp4", "-fr")
     assert "audiotrans-traducciones=," in r.stdout

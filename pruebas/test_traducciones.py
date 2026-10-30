@@ -33,7 +33,7 @@ def test_destino_de_la_carpeta(tmp_path):
 
 
 def test_poner_quitar_y_validar(video, capsys):
-    ruta = video.with_name("s1-e1.es.tsv")
+    ruta = video.parent / ".audiotrans" / "s1-e1.es.tsv"
     assert t.main(["poner", str(video), "1", "¿Tengo que quedarme aquí? Aguántate."]) == 0
     assert t.main(["poner", str(video), "3", "¿Ya   viste a la nieta?"]) == 0
     filas = t.leer_tsv(ruta)
@@ -49,17 +49,18 @@ def test_poner_desde_la_entrada(video, monkeypatch):
     import io
     monkeypatch.setattr("sys.stdin", io.StringIO("# comentario\n2\tSí.\n3\t¿Ya viste a la nieta?\n"))
     assert t.main(["poner", str(video), "-"]) == 0
-    assert sorted(t.leer_tsv(video.with_name("s1-e1.es.tsv"))) == [2, 3]
+    assert sorted(t.leer_tsv(video.parent / ".audiotrans" / "s1-e1.es.tsv")) == [2, 3]
 
 
 def test_poner_rechaza_bloques_que_no_existen(video):
     with pytest.raises(SystemExit):
         t.main(["poner", str(video), "9", "nada"])
-    assert not video.with_name("s1-e1.es.tsv").exists()
+    assert not (video.parent / ".audiotrans" / "s1-e1.es.tsv").exists()
 
 
 def test_validar_detecta_filas_que_mpv_ignoraria(video, capsys):
-    video.with_name("s1-e1.es.tsv").write_text(
+    (video.parent / ".audiotrans").mkdir()
+    (video.parent / ".audiotrans" / "s1-e1.es.tsv").write_text(
         "1\tDo I have to stay / here? Cowboy up.\tAguántate.\n"
         "3\tDid you get a loan of / that granddaughter?\t¿Ya viste a la nieta?\n"
         "7\tNada\tNada\n")
@@ -123,6 +124,13 @@ def test_revisar_sigue_si_no_puede_escribir_la_cache(video, capsys, monkeypatch)
     salida = capsys.readouterr()
     assert salida.out.splitlines()[1:] == ["1\tDo I have to stay / here? Cowboy up.\t[Do I have to stay here? Cowboy up.]"]
     assert "no se guardó la caché" in salida.err
+
+
+def test_un_tsv_de_antes_se_mueve_a_la_carpeta_oculta(video):
+    video.with_name("s1-e1.es.tsv").write_text("2\tYeah.\tSí.\n")
+    assert t.leer_tsv(t.ruta_tsv(str(video), "es")) == {2: ("Yeah.", "Sí.")}
+    assert not video.with_name("s1-e1.es.tsv").exists()
+    assert (video.parent / ".audiotrans" / "s1-e1.es.tsv").exists()
 
 
 def test_traducir_lote_sin_modelo_local_traduce_una_por_una(monkeypatch):

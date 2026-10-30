@@ -58,7 +58,7 @@ Usa el `.srt` con el mismo nombre que el video. Si no existe, lo baja de [OpenSu
 
 Para que `r` repita con el tiempo exacto, prepara los episodios con anticipación, cuando no uses la computadora: `practice --prepare ~/Videos/serie` (o solo algunos episodios). Whisper ubica cada línea palabra por palabra (~6 min por episodio, con prioridad baja). Al verlos ya no se usa CPU extra. `practice --status` dice cuáles de la carpeta actual ya están preparados; también acepta carpetas o videos sueltos, y salta lo que no es video.
 
-Los dos traductores (el local y Google) van frase por frase y traducen literal los modismos poco comunes: "Cowboy up" sale "Vaquero arriba" en ambos, y "the usual chest pounding", algo como "el golpeteo de pecho habitual". Para esas líneas hay **traducciones revisadas**: un archivo `s1-e1.es.tsv` junto al video, con una fila por línea corregida (número de bloque del `.srt`, texto original y traducción, separados por tabuladores). `y` y `d` las usan en vez de traducir, y el archivo puede tener solo algunas líneas. Lo puede escribir cualquier agente (Claude, Gemini, Codex…), que traduce con el contexto de la escena, con [`audiotrans/traducciones.py`](audiotrans/traducciones.py):
+Los dos traductores (el local y Google) van frase por frase y traducen literal los modismos poco comunes: "Cowboy up" sale "Vaquero arriba" en ambos, y "the usual chest pounding", algo como "el golpeteo de pecho habitual". Para esas líneas hay **traducciones revisadas**: un archivo `.audiotrans/s1-e1.es.tsv` en la carpeta del video (oculta, junto con las automáticas ya calculadas, para que `y` y `C` no las traduzcan otra vez), con una fila por línea corregida (número de bloque del `.srt`, texto original y traducción, separados por tabuladores). `y` y `d` las usan en vez de traducir, y el archivo puede tener solo algunas líneas. Lo puede escribir cualquier agente (Claude, Gemini, Codex…), que traduce con el contexto de la escena, con [`audiotrans/traducciones.py`](audiotrans/traducciones.py):
 
 ```bash
 python -m audiotrans.traducciones revisar s1-e1.mp4 1 150       # original y traducción automática
@@ -241,7 +241,7 @@ audiotrans/
   instalar.py        audiotrans --setup: traductores y manual
   mpv/audiotrans.lua teclas r/R/e/E/t/y/d/c/q dentro de mpv
   dudas.py           guarda las dudas con su fragmento de audio
-  traducciones.py    traducciones revisadas de un episodio (<video>.<destino>.tsv)
+  traducciones.py    traducciones revisadas de un episodio (.audiotrans/<video>.<destino>.tsv)
   sincronizar.py     sincroniza el .srt con el audio por tramos
   subtitulos.py      baja el .srt de OpenSubtitles si falta
   alinear.py         ubica cada línea palabra por palabra (practice --prepare)

@@ -150,8 +150,9 @@ muestran una línea, los subtítulos normales se quitan para no encimarse.
 .TP
 .B C
 Como \fBc\fR, pero debajo de cada línea va su traducción: la revisada de
-\fI<video>.<destino>.tsv\fR o, si no la hay, la automática. Las automáticas
-salen de \fI<video>.<destino>.automaticas.tsv\fR si ya se calcularon (al
+\fI.audiotrans/<video>.<destino>.tsv\fR o, si no la hay, la automática. Las
+automáticas salen de \fI.audiotrans/<video>.<destino>.automaticas.tsv\fR si ya
+se calcularon (al
 revisar el episodio, con \fBy\fR o con otro \fBC\fR); las que faltan se traducen en lote al presionarla (primero las
 próximas 20) y, mientras llegan, se ve \(lq…\(rq. Otra vez \fBC\fR los quita.
 .TP
@@ -214,7 +215,7 @@ que no son video (\fI.srt\fR, \fItt...\fR) se saltan, así que
 .PP
 Los traductores van frase por frase y traducen literal los modismos poco
 comunes ("Cowboy up" sale "Vaquero arriba"). Para esas líneas,
-\fIvideo\fR\fB.\fR\fIdestino\fR\fB.tsv\fR junto al video guarda traducciones
+\fB.audiotrans/\fR\fIvideo\fR\fB.\fR\fIdestino\fR\fB.tsv\fR, en la carpeta del video, guarda traducciones
 revisadas, que \fBy\fR y \fBd\fR usan en vez de traducir: una fila por línea,
 con el número de bloque del \fI.srt\fR, el texto original y la traducción,
 separados por tabuladores. Puede tener solo algunas líneas. Lo escribe un
@@ -373,11 +374,13 @@ Subtítulos ya sincronizados de \fBpractice\fR (\fI.srt\fR), y los de
 tiempo exacto). Uno por combinación de video y \fI.srt\fR; se vuelven a generar
 si alguno cambia o si cambia cómo se procesan. Se pueden borrar.
 .TP
-.IR video ".srt, " video . destino .tsv ", " video . destino .automaticas.tsv
-Subtítulos originales del episodio, junto al video, sus traducciones
-revisadas (opcional) y las automáticas ya calculadas, para que \fBy\fR y
+.IR video ".srt, .audiotrans/" video . destino ".tsv, .audiotrans/" video . destino .automaticas.tsv
+Subtítulos originales del episodio, junto al video, y en la carpeta oculta
+\fI.audiotrans/\fR de la serie sus traducciones revisadas (opcional) y las
+automáticas ya calculadas, para que \fBy\fR y
 \fBC\fR no las calculen otra vez (\fI.automaticas\-google.tsv\fR si las dio
-Google). Las automáticas se pueden borrar.
+Google). Las automáticas se pueden borrar. Los \fI.tsv\fR de antes, junto al
+video, se mueven ahí la primera vez que se usan.
 .TP
 .IR ~/.agents/skills/traducir\-episodio ", " ~/.claude/skills/traducir\-episodio ", " ~/.grok/skills/traducir\-episodio ", " ~/.gemini/config/skills/traducir\-episodio
 Enlaces a la skill del paquete que pone \fBaudiotrans \-\-setup\fR: la primera la
@@ -386,8 +389,8 @@ los agentes que estén instalados).
 .TP
 .I ~/.local/share/bash\-completion/completions/practice
 Completado de \fBpractice\fR para bash (lo pone \fBaudiotrans \-\-setup\fR):
-con Tab solo ofrece videos, carpetas y opciones, no los \fI.srt\fR ni los
-\fI.tsv\fR que están junto a cada video. Lo carga bash\-completion.
+con Tab solo ofrece videos, carpetas y opciones, no los \fI.srt\fR que están
+junto a cada video. Lo carga bash\-completion.
 .TP
 .I ~/.local/share/audiotrans/preferencias\-traduccion.md
 Preferencias del usuario para la skill (opcional): la variante del español,

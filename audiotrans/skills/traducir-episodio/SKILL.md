@@ -7,7 +7,7 @@ description: Corrige las traducciones de los subtítulos de un episodio o pelíc
 
 El usuario practica listening con `practice <video>` ([audiotrans](https://github.com/gamaerry/audiotrans)), casi siempre en inglés. En mpv, la tecla `y` muestra la traducción de la línea que acaba de pasar. Normalmente la hace el traductor automático (OPUS-MT, o Google), que va frase por frase y traduce literal los modismos: "Cowboy up" → "Vaquero arriba", "the usual chest pounding" → algo como "el golpeteo de pecho habitual".
 
-Tú eres el traductor: lees la línea con su contexto, entiendes qué quiere decir y guardas la traducción buena en `<video>.<destino>.tsv`, junto al video. Desde ahí `y` y `d` (guardar duda) la usan en vez de traducir. El archivo puede tener solo las líneas que corregiste.
+Tú eres el traductor: lees la línea con su contexto, entiendes qué quiere decir y guardas la traducción buena en `.audiotrans/<video>.<destino>.tsv`, una carpeta oculta junto al video. Desde ahí `y` y `d` (guardar duda) la usan en vez de traducir. El archivo puede tener solo las líneas que corregiste.
 
 Habla con el usuario en español. Si existe `~/.local/share/audiotrans/preferencias-traduccion.md` (o en `$AUDIOTRANS_DATOS`), léelo antes de empezar, una sola vez: ahí el usuario anota sus preferencias (la variante del español, palabras que prefiere, cosas que no debes hacer). Lo que diga ahí manda sobre esta guía.
 
@@ -99,6 +99,6 @@ printf '%s\n' $'3\t...' $'17\t...' | $PY -m audiotrans.traducciones poner <video
 
 ## No hagas
 
-- No edites el `.srt`, los archivos de la caché (`~/.cache/audiotrans/`) ni el código de audiotrans, y tampoco `<video>.<destino>.automaticas.tsv`: ahí `revisar` guarda solo las automáticas, para no calcularlas otra vez. Todo va en el `.tsv` y siempre con `poner` y `quitar`, no a mano: el formato lleva tabuladores y el original de cada fila tiene que coincidir con el `.srt`.
+- No edites el `.srt`, los archivos de la caché (`~/.cache/audiotrans/`) ni el código de audiotrans, y tampoco `.audiotrans/<video>.<destino>.automaticas.tsv`: ahí `revisar` guarda solo las automáticas, para no calcularlas otra vez. Todo va en el `.tsv` y siempre con `poner` y `quitar`, no a mano: el formato lleva tabuladores y el original de cada fila tiene que coincidir con el `.srt`.
 - No uses Google ni `textrans` para traducir: el punto es que traduzcas tú, con el contexto.
 - No instales, actualices ni configures nada: todo lo que necesitas ya está instalado.
