@@ -22,6 +22,7 @@ BLOQUE = TASA // 5     # se lee en bloques de 0.2 s
 # esperarlos otra s termina en el momento
 PAUSA = 2.0
 SIN_VOZ = 5            # s sin empezar a hablar tras los que se deja de grabar
+GRABACION = os.path.expanduser("~/.cache/audiotrans/hablado.wav")  # la última, para revisarla
 GRABAR = ["pw-record", "--rate", str(TASA), "--channels", "1", "--format", "s16", "--raw", "-"]
 
 
@@ -150,11 +151,28 @@ def grabar(duracion, terminar=None):
         proceso.wait()
 
 
+def guardar_grabacion(audio):
+    import wave
+    import numpy as np
+    try:
+        os.makedirs(os.path.dirname(GRABACION), exist_ok=True)
+        with wave.open(GRABACION, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(TASA)
+            w.writeframes((np.clip(audio, -1, 1) * 32767).astype(np.int16).tobytes())
+    except OSError:
+        pass  # sin la copia también se evalúa
+
+
 def ventana_min(origen):
-    # En inglés la ventana ajustada marcó en rojo las mismas palabras que la de 15 s (21 de 753
-    # en 60 frases de LibriSpeech dichas bien, de 1.5 a 8 s) y tarda 0.67 s en vez de 1.21 s.
-    # En español la ajustada se equivoca más (ver whisper_corto.py), y los demás no se midieron
-    return 0 if origen == "en" else 15
+    # En inglés, 8 s marca en rojo lo mismo que 15 s en menos tiempo: 21 de 753 palabras con 60
+    # frases de LibriSpeech dichas bien, de 1.5 a 8 s (0.76 s contra 1.21 s), y 10 contra 11 de 105
+    # con 60 líneas cortas de espeak como "Coffee?" (0.51 s contra 0.97 s). La ajustada (0) es
+    # igual de buena con frases largas, pero con las cortas Whisper las repite ("Coffee coffee
+    # coffee", "I know. I know.") en 26 de las 60. En español hasta la ajustada se equivoca más
+    # (ver whisper_corto.py), y los demás idiomas no se midieron
+    return 8 if origen == "en" else 15
 
 
 def principal(origen, esperado, duracion, terminar=None):
@@ -175,6 +193,7 @@ def principal(origen, esperado, duracion, terminar=None):
             os.remove(terminar)
     if audio is None or len(audio) == 0:
         sys.exit("no se escuchó nada")
+    guardar_grabacion(audio)
     hilo.join()
     from . import whisper_corto
     # Sin la línea como contexto: Whisper la "oiría" aunque no se dijera bien
