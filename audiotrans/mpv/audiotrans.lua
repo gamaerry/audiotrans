@@ -6,6 +6,8 @@
 --   t  mostrar el texto original de la línea
 --   y  mostrar la traducción (la revisada del .tsv del episodio o, si no, la de la caché)
 --   d  guardar la línea como duda, con su audio (para repasar en Anki)
+--   s  repetirla en voz alta: graba del micrófono hasta que te callas y marca en rojo las
+--      palabras que Whisper no entendió (otra vez s cancela; la captura de pantalla queda en S)
 --   c  seguir viendo con los subtítulos de mpv visibles (otra vez c para quitarlos)
 --   C  seguir viendo con los subtítulos y su traducción debajo (otra vez C para quitarlos)
 --   q  quitar la repetición o el texto y seguir viendo normal (ya no cierra mpv: eso queda en Q)
@@ -44,6 +46,7 @@ local overlay_dobles = mp.create_osd_overlay("ass-events")
 local dobles = false     -- C: cada línea se ve al pasar, con su traducción debajo
 local doble_actual = nil -- índice de la línea dibujada en overlay_dobles
 local pedidas = false    -- ya se pidieron las traducciones automáticas que faltan
+local hablando = nil     -- s: la grabación en curso de hablar.py ({ id = comando asíncrono })
 
 local function a_segundos(h, m, s, ms)
     return tonumber(h) * 3600 + tonumber(m) * 60 + tonumber(s) + tonumber(ms) / 1000
@@ -157,9 +160,20 @@ local function linea_actual()
     return actual
 end
 
-local function texto_ass(original, traduccion)
+local function texto_ass(original, traduccion, habla)
+    -- habla: resultado de s, que reemplaza al original con las palabras coloreadas
     local partes = {}
-    if original then table.insert(partes, "{\\an2\\fs40\\bord2\\1c&HFFFFFF&}" .. escapar_ass(original)) end
+    if habla then
+        local palabras = {}
+        for _, p in ipairs(habla.palabras) do
+            table.insert(palabras, (p.ok and "{\\1c&H88FF88&}" or "{\\1c&H5555FF&}") .. escapar_ass(p.texto))
+        end
+        table.insert(partes, "{\\an2\\fs40\\bord2}" .. table.concat(palabras, " "))
+        table.insert(partes, string.format("{\\an2\\fs28\\bord2\\1c&HBBBBBB&}%d %% · se entendió: %s",
+            habla.porcentaje, escapar_ass(habla.oido)))
+    elseif original then
+        table.insert(partes, "{\\an2\\fs40\\bord2\\1c&HFFFFFF&}" .. escapar_ass(original))
+    end
     if traduccion then table.insert(partes, "{\\an2\\fs34\\bord2\\1c&H66DDFF&}" .. escapar_ass(traduccion)) end
     return table.concat(partes, "\\N")
 end
@@ -228,7 +242,7 @@ local function dibujar()
         mp.set_property_bool("sub-visibility", false)
         subs_ocultos = true
     end
-    overlay.data = texto_ass(mostrado.original, mostrado.traduccion)
+    overlay.data = texto_ass(mostrado.original, mostrado.traduccion, mostrado.habla)
     mp.msg.verbose("en pantalla: " .. overlay.data)
     overlay:update()
     actualizar_dobles()
@@ -302,7 +316,15 @@ mp.observe_property("time-pos", "number", function(_, t)
     end
 end)
 
+local function cancelar_habla()
+    if not hablando then return end
+    mp.abort_async_command(hablando.id)
+    hablando = nil
+    mp.osd_message("")
+end
+
 mp.observe_property("pause", "bool", function(_, pausado)
+    if pausado == false then cancelar_habla() end  -- si no, grabaría el audio del video
     if pausado == false and not pausar_en then ocultar() end  -- al reanudar se quita el texto
 end)
 
@@ -355,6 +377,49 @@ local function guardar_duda()
         else
             mp.osd_message("No se pudo guardar la duda: " .. ((r and r.stderr) or "error"), 5)
         end
+    end)
+end
+
+local function hablar()
+    -- El video queda en pausa mientras se graba, así que las bocinas no se mezclan con la voz.
+    -- hablar.py graba solo y termina al detectar la pausa: matar un pw-record a media
+    -- grabación no deja nada útil, así que el Lua solo lo cancela
+    if hablando then
+        cancelar_habla()
+        return mp.osd_message("Grabación cancelada", 2)
+    end
+    local i = linea_en_foco()
+    if not i then return mp.osd_message("Todavía no hay diálogo") end
+    terminar_repeticion()
+    mp.set_property_bool("pause", true)
+    local l = lineas[i]
+    mostrado.habla = nil
+    if mostrado.original then dibujar() end  -- quita un resultado anterior, deja t o y
+    mp.osd_message("● Repite la línea en voz alta... (s cancela)", 30)
+    local yo = {}
+    hablando = yo
+    yo.id = mp.command_native_async({
+        name = "subprocess", capture_stdout = true, capture_stderr = true, playback_only = false,
+        args = { opts.python, "-m", "audiotrans.hablar", opts.origen, l.texto, tostring(l.fin - l.inicio) },
+    }, function(ok, r)
+        if hablando ~= yo then return end  -- se canceló o ya hay otra grabación
+        hablando = nil
+        mp.osd_message("")
+        if not (ok and r.status == 0) then
+            local motivo = r and r.stderr and r.stderr:match("([^\n]+)%s*$") or "error"
+            return mp.osd_message("No se pudo evaluar: " .. motivo, 4)
+        end
+        local porcentaje, oido, resto = r.stdout:match("^(%d+)\n([^\n]*)\n(.*)$")
+        if not porcentaje then return mp.osd_message("No se pudo evaluar", 3) end
+        local palabras = {}
+        for estado, texto in resto:gmatch("(%a+)\t([^\n]*)") do
+            table.insert(palabras, { texto = texto, ok = estado == "ok" })
+        end
+        foco = i
+        mostrado.original = l.texto
+        mostrado.habla = { porcentaje = tonumber(porcentaje), oido = oido, palabras = palabras }
+        mp.msg.verbose("habla: " .. porcentaje .. " % · " .. oido)
+        dibujar()
     end)
 end
 
@@ -411,6 +476,7 @@ if cargado then
     mp.add_forced_key_binding("t", "audiotrans-texto", mostrar_texto)
     mp.add_forced_key_binding("y", "audiotrans-traduccion", mostrar_traduccion)
     mp.add_forced_key_binding("d", "audiotrans-duda", guardar_duda)
+    mp.add_forced_key_binding("s", "audiotrans-hablar", hablar)
     mp.add_forced_key_binding("c", "audiotrans-subtitulos", continuar_con_subtitulos)
     mp.add_forced_key_binding("C", "audiotrans-subtitulos-traduccion", continuar_con_traduccion)
     mp.add_forced_key_binding("q", "audiotrans-seguir", seguir_normal)
@@ -420,7 +486,7 @@ if cargado then
     if revisadas > 0 then preparado = preparado .. string.format(" · %d traducciones revisadas", revisadas) end
     mp.msg.verbose(revisadas .. " traducciones revisadas")
     mp.register_event("file-loaded", function()
-        mp.osd_message(#lineas .. " líneas" .. preparado .. " · r repetir · R más lento · e/E anterior/siguiente · t texto · y traducción · d guardar duda · c con subtítulos · C con traducción · q seguir normal", 6)
+        mp.osd_message(#lineas .. " líneas" .. preparado .. " · r repetir · R más lento · e/E anterior/siguiente · t texto · y traducción · d guardar duda · s repetir en voz alta · c con subtítulos · C con traducción · q seguir normal", 6)
     end)
 else
     mp.msg.warn("audiotrans: no se pudieron leer los subtítulos: " .. (opts.json ~= "" and opts.json or opts.srt))

@@ -126,7 +126,7 @@ hablan rápido o las palabras se pegan.
 .TP
 .B e
 Repite la línea anterior, por si \fBr\fR no cayó en la que se quería. Cada
-\fBe\fR retrocede una línea más, y \fBt\fR, \fBy\fR y \fBd\fR toman la
+\fBe\fR retrocede una línea más, y \fBt\fR, \fBy\fR, \fBd\fR y \fBs\fR toman la
 línea a la que se llegó.
 .TP
 .B E
@@ -142,6 +142,17 @@ abajo) y, si no, la de \fBtextrans\fR.
 .B d
 Guarda la línea como duda: el texto, la traducción y el fragmento de audio
 (con los mismos márgenes que \fBr\fR) en \fI~/.local/share/audiotrans/dudas/\fR.
+.TP
+.B s
+Práctica de speaking: pausa y graba del micrófono cómo repites la línea, hasta
+1.2 s de silencio. Whisper lo transcribe sin la línea como pista (con ella la
+\(lqoiría\(rq aunque no se dijera bien) y se compara palabra por palabra, sin
+acentos ni signos: quedan en verde las palabras que se entendieron y en rojo
+las demás, con el porcentaje y lo que se entendió. Las cifras se comparan en
+palabras (\(lq20\(rq y \(lqtwenty\(rq cuentan igual). Mide si se te entiende, no
+el acento. Otra vez \fBs\fR, o reanudar, cancela la grabación. Como el video
+está en pausa, no hacen falta audífonos. La captura de pantalla de mpv queda
+en \fBS\fR.
 .TP
 .B c
 Reanuda la reproducción con todos los subtítulos visibles, hasta presionarla
@@ -164,7 +175,7 @@ próxima vez.
 .TP
 .BR v ", " z ", " x
 Teclas normales de mpv: mostrar todos los subtítulos, y adelantarlos o
-atrasarlos 0.1 s (r, t, y y d lo toman en cuenta). Normalmente no hace falta,
+atrasarlos 0.1 s (r, t, y, d y s lo toman en cuenta). Normalmente no hace falta,
 porque los subtítulos se sincronizan solos.
 .PP
 Cada serie o película va en su carpeta, con un archivo vacío llamado

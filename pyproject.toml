@@ -12,6 +12,8 @@ dependencies = [
     # PyAV 16+ rompe faster-whisper 1.2.1 (av.open ya no acepta metadata_errors)
     "av==15.1.0",
     "sentencepiece==0.2.2",
+    # practice, tecla s: "20" y "twenty" cuentan igual al comparar
+    "num2words==0.5.14",
 ]
 
 [project.optional-dependencies]

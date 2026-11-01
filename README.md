@@ -41,6 +41,7 @@ He didn't say a word, but his eyes told me everything.
 | `t` | muestra el texto original |
 | `y` | muestra la traducción (la revisada del episodio, si la hay) |
 | `d` | guarda la duda: texto, traducción y fragmento de audio |
+| `s` | practica speaking: repites la línea en voz alta y marca en rojo las palabras que no se entendieron (otra vez `s` cancela) |
 | `c` | sigue viendo con los subtítulos visibles (otra vez `c` para quitarlos) |
 | `C` | sigue viendo con los subtítulos y la traducción de cada línea debajo (otra vez `C` para quitarlos) |
 | `q` | quita la repetición o el texto y sigue viendo normal; para salir, `Q` (mpv recuerda dónde ibas) |
@@ -55,6 +56,8 @@ touch ~/Videos/amelie/tt0211915.fr-es
 Si el nombre del video tiene temporada y episodio (`s1-e3`, `S01E03`, `t1e3`, `1x03`), es un episodio de esa serie; si no, la película, sin importar cómo se llame el archivo. `-<destino>` al abrirlo cambia la traducción solo esa vez.
 
 Usa el `.srt` con el mismo nombre que el video. Si no existe, lo baja de [OpenSubtitles](https://www.opensubtitles.com/) en el idioma original: primero busca por el hash del archivo y, si no hay, por el ID de IMDb. Con el ID no se confunden obras con el mismo nombre (buscando "the office" salían mezcladas la británica, la de EE. UU. y la de 2024). En ese caso baja hasta 3 versiones, la más descargada de cada fuente (TV, WEB, DVD), y se queda con la que, ya sincronizada, mejor coincide con la voz (~10 s más). Antes descarta las que tienen el texto mal hecho, con palabras y signos pegados ("year,it's", "a trainat union square"), si hay alguna limpia: la más descargada de White Collar 1x02 tenía así el 38 % de las líneas, y la coincidencia con la voz no lo nota. `practice --status` avisa si un `.srt` que ya tienes está así. Necesita una clave de API, que se crea en [opensubtitles.com/consumers](https://www.opensubtitles.com/en/consumers) y se guarda como `api_key=<clave>` en `~/.local/share/audiotrans/opensubtitles`; sin iniciar sesión, OpenSubtitles da 100 descargas al día. Muchos `.mkv` traen los subtítulos dentro y se extraen con `ffmpeg -i video.mkv -map 0:s:0 video.srt`. La primera vez que abres un episodio, los subtítulos se **sincronizan con el audio por tramos** (~15 s, se guarda en caché): si el `.srt` es de otra versión del video, cada parte del episodio se corrige por separado. `practice saved` lista lo guardado.
+
+Con `s` el video se pausa y graba del micrófono hasta que te callas (1.2 s de silencio). Whisper transcribe lo que dijiste, sin darle la línea como pista para que no la "oiga" aunque no se dijera bien, y se compara palabra por palabra con el texto, sin acentos ni signos. En pantalla queda la línea con las palabras entendidas en verde y las demás en rojo, el porcentaje y lo que se entendió. El modelo se carga mientras ya grabas, así que no se pierden las primeras palabras, y el resultado tarda ~1 s después de callarte. Las cifras se comparan en palabras con [num2words](https://github.com/savoirfairelinux/num2words), en el idioma original: "20" y "twenty", "3:30" (o "3.30", como lo escribe Whisper) y "three thirty", "$5" y "five dollars", o "1999" y "nineteen ninety-nine" cuentan igual. Mide si se te entiende, no qué tan nativo suena el acento. Como el video está en pausa, no hacen falta audífonos. La tecla `s` de mpv (captura de pantalla) queda en `S`.
 
 Para que `r` repita con el tiempo exacto, prepara los episodios con anticipación, cuando no uses la computadora: `practice --prepare ~/Videos/serie` (o solo algunos episodios). Whisper ubica cada línea palabra por palabra (~6 min por episodio, con prioridad baja). Al verlos ya no se usa CPU extra. `practice --status` dice cuáles de la carpeta actual ya están preparados; también acepta carpetas o videos sueltos, y salta lo que no es video.
 
@@ -239,8 +242,9 @@ audiotrans/
   texto.py           textrans: detección en/es por palabras frecuentes
   traduccion.py      local (OPUS-MT) primero, luego Google y luego trans
   instalar.py        audiotrans --setup: traductores y manual
-  mpv/audiotrans.lua teclas r/R/e/E/t/y/d/c/q dentro de mpv
+  mpv/audiotrans.lua teclas r/R/e/E/t/y/d/s/c/q dentro de mpv
   dudas.py           guarda las dudas con su fragmento de audio
+  hablar.py          tecla s: graba cómo repites la línea y la compara con el texto
   traducciones.py    traducciones revisadas de un episodio (.audiotrans/<video>.<destino>.tsv)
   sincronizar.py     sincroniza el .srt con el audio por tramos
   subtitulos.py      baja el .srt de OpenSubtitles si falta
@@ -262,5 +266,6 @@ instalar.sh          instalación editable desde el repo
 
 El código de este repositorio usa la licencia [MIT](LICENSE). Usa:
 - [Whisper](https://github.com/openai/whisper) (OpenAI, MIT), mediante [faster-whisper](https://github.com/SYSTRAN/faster-whisper) y [CTranslate2](https://github.com/OpenNMT/CTranslate2) (MIT).
+- [num2words](https://github.com/savoirfairelinux/num2words) (LGPL-2.1), para comparar cifras con palabras en la tecla `s` de `practice`.
 - Modelos [Tatoeba-MT / OPUS-MT](https://github.com/Helsinki-NLP/Tatoeba-Challenge) de Helsinki-NLP (Jörg Tiedemann y colaboradores), con licencia **CC-BY 4.0**. `audiotrans --setup` los descarga y no se redistribuyen aquí. Su licencia y su ficha quedan junto a cada modelo.
 - La API de Google que usa la traducción en línea es el mismo servicio no oficial que usa translate-shell (ver *Cuándo se usa internet*).
