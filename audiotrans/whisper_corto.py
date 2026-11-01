@@ -7,6 +7,7 @@ algo (con voz sintética: "llévaten para aguas" en vez de "llévate un paraguas
 recupera con una ventana mínima de 15 s (~1.1 s). Solo sirve para audio de hasta
 MAX_DURACION segundos; lo más largo se transcribe con faster-whisper normal.
 """
+import os
 import re
 
 import ctranslate2
@@ -15,6 +16,21 @@ import numpy as np
 MAX_DURACION = 28
 TASA = 16000
 MAX_CONTEXTO = 100  # tokens del texto anterior que se le pasan a Whisper (admite hasta 223)
+
+
+def cargar(nombre=None, hilos=None):
+    """El modelo de Whisper ($AUDIOTRANS_MODEL, por defecto small) en CPU, primero desde la caché:
+    sin local_files_only, faster-whisper le pregunta a huggingface.co por una versión nueva
+    cada vez que se carga."""
+    from faster_whisper import WhisperModel
+
+    nombre = nombre or os.environ.get("AUDIOTRANS_MODEL", "small")
+    # 4 hilos por defecto: en un i3-N305 (8 núcleos eficientes en 2 bloques de 4) más hilos resultaron más lentos
+    hilos = hilos or int(os.environ.get("AUDIOTRANS_HILOS", 4))
+    try:
+        return WhisperModel(nombre, device="cpu", compute_type="int8", cpu_threads=hilos, local_files_only=True)
+    except Exception:  # todavía no está descargado
+        return WhisperModel(nombre, device="cpu", compute_type="int8", cpu_threads=hilos)
 
 
 def _sin_bucle(texto):

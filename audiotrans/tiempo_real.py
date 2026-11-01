@@ -9,7 +9,6 @@ import sys
 import threading
 
 import numpy as np
-from faster_whisper import WhisperModel
 
 from . import whisper_corto
 from .frases import Segmentador
@@ -28,8 +27,7 @@ CONTEXTO = not RAPIDO              # pasar las frases anteriores como pista (no 
 
 origen = sys.argv[1] or None
 destino = sys.argv[2]
-# 4 hilos por defecto: en un i3-N305 (8 núcleos eficientes en 2 bloques de 4) más hilos resultaron más lentos
-modelo = WhisperModel(os.environ.get("AUDIOTRANS_MODEL", "small"), device="cpu", compute_type="int8", cpu_threads=int(os.environ.get("AUDIOTRANS_HILOS", 4)))
+modelo = whisper_corto.cargar()
 
 audio = queue.Queue()
 frases = queue.Queue()

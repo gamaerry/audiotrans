@@ -64,3 +64,21 @@ def test_comparar_cifra_contra_palabras():
 
 def test_comparar_cifra_a_medias_cuenta_como_falta():
     assert comparar("Year 1999.", "year nineteen", "en") == (50, [("Year", True), ("1999.", False)])
+
+
+def test_comparar_palabras_unidas_o_separadas():
+    assert comparar("They ate corncakes.", "They ate corn cakes.", "en")[0] == 100
+    assert comparar("Turn off the T V.", "Turn off the TV.", "en")[0] == 100
+    assert comparar("A well-known guy.", "a wellknown guy", "en")[0] == 100
+
+
+def test_comparar_unidas_no_tapa_otras_palabras():
+    # mismas letras solo si el tramo distinto entero coincide
+    assert comparar("The cat sat.", "The cats at.", "en") == (100, [("The", True), ("cat", True), ("sat.", True)])
+    assert comparar("The cat sat.", "The dog sat.", "en") == (67, [("The", True), ("cat", False), ("sat.", True)])
+
+
+def test_comparar_abreviaturas():
+    assert comparar("Thank you, Missus Shaw.", "Thank you, Mrs. Shaw.", "en")[0] == 100
+    assert comparar("Dr. Lee is OK.", "doctor lee is okay", "en")[0] == 100
+    assert comparar("Buenos días, Sra. López.", "buenos días señora lópez", "es")[0] == 100

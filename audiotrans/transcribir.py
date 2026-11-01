@@ -6,7 +6,7 @@ import os
 import sys
 
 import numpy as np
-from faster_whisper import WhisperModel, decode_audio
+from faster_whisper import decode_audio
 from faster_whisper.vad import VadOptions, get_speech_timestamps
 
 from . import whisper_corto
@@ -15,8 +15,7 @@ from .traduccion import traducir
 wav, origen, destino = sys.argv[1], sys.argv[2] or None, sys.argv[3]
 beam = 5 if os.environ.get("AUDIOTRANS_RAPIDO") == "1" else 10
 
-# 4 hilos por defecto: en un i3-N305 (8 núcleos eficientes en 2 bloques de 4) más hilos resultaron más lentos
-modelo = WhisperModel(os.environ.get("AUDIOTRANS_MODEL", "small"), device="cpu", compute_type="int8", cpu_threads=int(os.environ.get("AUDIOTRANS_HILOS", 4)))
+modelo = whisper_corto.cargar()
 audio = decode_audio(wav)
 voz = get_speech_timestamps(audio, VadOptions(speech_pad_ms=600))
 audio = np.concatenate([audio[v["start"]:v["end"]] for v in voz]) if voz else audio[:0]

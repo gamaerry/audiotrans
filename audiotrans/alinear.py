@@ -18,8 +18,8 @@ import sys
 import unicodedata
 
 import numpy as np
-from faster_whisper import WhisperModel
 
+from . import whisper_corto
 from .sincronizar import formato, leer_srt
 
 BUSQUEDA = 3.0  # s alrededor de la línea en los que se buscan sus palabras
@@ -42,8 +42,7 @@ def transcribir(video, idioma):
         capture_output=True, check=True,
     ).stdout
     audio = np.frombuffer(pcm, np.int16).astype(np.float32) / 32768
-    modelo = WhisperModel(os.environ.get("AUDIOTRANS_MODEL", "small"), device="cpu", compute_type="int8",
-                          cpu_threads=int(os.environ.get("AUDIOTRANS_HILOS", 4)))
+    modelo = whisper_corto.cargar()
     # beam 1: 23 % más rápido que el 5 por defecto, casi las mismas líneas exactas y los
     # inicios más cerca de los de Whisper medium (ver README, descubrimiento 6)
     segmentos, _ = modelo.transcribe(audio, language=idioma, word_timestamps=True, beam_size=1,

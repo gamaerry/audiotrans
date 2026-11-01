@@ -6,8 +6,8 @@
 --   t  mostrar el texto original de la línea
 --   y  mostrar la traducción (la revisada del .tsv del episodio o, si no, la de la caché)
 --   d  guardar la línea como duda, con su audio (para repasar en Anki)
---   s  repetirla en voz alta: graba del micrófono hasta que te callas y marca en rojo las
---      palabras que Whisper no entendió (otra vez s cancela; la captura de pantalla queda en S)
+--   s  repetirla en voz alta: graba del micrófono hasta que te callas 2 s, o hasta otra s, y
+--      marca en rojo las palabras que Whisper no entendió (q cancela; la captura queda en S)
 --   c  seguir viendo con los subtítulos de mpv visibles (otra vez c para quitarlos)
 --   C  seguir viendo con los subtítulos y su traducción debajo (otra vez C para quitarlos)
 --   q  quitar la repetición o el texto y seguir viendo normal (ya no cierra mpv: eso queda en Q)
@@ -46,7 +46,8 @@ local overlay_dobles = mp.create_osd_overlay("ass-events")
 local dobles = false     -- C: cada línea se ve al pasar, con su traducción debajo
 local doble_actual = nil -- índice de la línea dibujada en overlay_dobles
 local pedidas = false    -- ya se pidieron las traducciones automáticas que faltan
-local hablando = nil     -- s: la grabación en curso de hablar.py ({ id = comando asíncrono })
+local contador_habla = 0 -- para que cada grabación tenga su propio archivo para terminar
+local hablando = nil     -- s: la grabación en curso ({ id = comando de hablar.py, terminar = archivo })
 
 local function a_segundos(h, m, s, ms)
     return tonumber(h) * 3600 + tonumber(m) * 60 + tonumber(s) + tonumber(ms) / 1000
@@ -319,6 +320,7 @@ end)
 local function cancelar_habla()
     if not hablando then return end
     mp.abort_async_command(hablando.id)
+    os.remove(hablando.terminar)  -- por si se canceló justo después de la otra s
     hablando = nil
     mp.osd_message("")
 end
@@ -382,11 +384,12 @@ end
 
 local function hablar()
     -- El video queda en pausa mientras se graba, así que las bocinas no se mezclan con la voz.
-    -- hablar.py graba solo y termina al detectar la pausa: matar un pw-record a media
-    -- grabación no deja nada útil, así que el Lua solo lo cancela
+    -- hablar.py termina solo tras 2 s de silencio, o antes si otra s crea el archivo que
+    -- revisa: matarlo a media grabación no deja nada útil (eso es cancelar, con q o al reanudar)
     if hablando then
-        cancelar_habla()
-        return mp.osd_message("Grabación cancelada", 2)
+        local f = io.open(hablando.terminar, "w")
+        if f then f:close() end
+        return mp.osd_message("Evaluando...", 10)
     end
     local i = linea_en_foco()
     if not i then return mp.osd_message("Todavía no hay diálogo") end
@@ -395,12 +398,15 @@ local function hablar()
     local l = lineas[i]
     mostrado.habla = nil
     if mostrado.original then dibujar() end  -- quita un resultado anterior, deja t o y
-    mp.osd_message("● Repite la línea en voz alta... (s cancela)", 30)
-    local yo = {}
+    mp.osd_message("● Repite la línea en voz alta... (s al terminar, q cancela)", 30)
+    contador_habla = contador_habla + 1
+    local yo = { terminar = string.format("%s/audiotrans-hablar-%d-%d",
+        os.getenv("XDG_RUNTIME_DIR") or "/tmp", utils.getpid(), contador_habla) }
+    os.remove(yo.terminar)
     hablando = yo
     yo.id = mp.command_native_async({
         name = "subprocess", capture_stdout = true, capture_stderr = true, playback_only = false,
-        args = { opts.python, "-m", "audiotrans.hablar", opts.origen, l.texto, tostring(l.fin - l.inicio) },
+        args = { opts.python, "-m", "audiotrans.hablar", opts.origen, l.texto, tostring(l.fin - l.inicio), yo.terminar },
     }, function(ok, r)
         if hablando ~= yo then return end  -- se canceló o ya hay otra grabación
         hablando = nil
